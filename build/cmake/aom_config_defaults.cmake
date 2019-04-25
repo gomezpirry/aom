@@ -60,6 +60,7 @@ set_aom_detect_var(HAVE_PTHREAD_H 0 NUMBER
 set_aom_detect_var(HAVE_UNISTD_H 0 NUMBER
                    "Internal flag, unistd.h present for target.")
 set_aom_detect_var(HAVE_WXWIDGETS 0 NUMBER "WxWidgets present.")
+set_aom_detect_var(HAVE_OPENCV 0 NUMBER "OpenCv Present.")
 
 #
 # Variables in this section can be set from the CMake command line or from
@@ -194,3 +195,5 @@ set_aom_option_var(ENABLE_AVX
                    "Enables AVX optimizations on x86/x86_64 targets." ON)
 set_aom_option_var(ENABLE_AVX2
                    "Enables AVX2 optimizations on x86/x86_64 targets." ON)
+set_aom_option_var(ENABLE_SPARSE
+					"Enables Sparse Representation." ON)

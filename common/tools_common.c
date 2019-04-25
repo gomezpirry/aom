@@ -78,6 +78,7 @@ void die_codec(aom_codec_ctx_t *ctx, const char *s) {
 int read_yuv_frame(struct AvxInputContext *input_ctx, aom_image_t *yuv_frame) {
   FILE *f = input_ctx->file;
   struct FileTypeDetectionBuffer *detect = &input_ctx->detect;
+
   int plane = 0;
   int shortread = 0;
   const int bytespp = (yuv_frame->fmt & AOM_IMG_FMT_HIGHBITDEPTH) ? 2 : 1;

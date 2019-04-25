@@ -1,0 +1,122 @@
+Determining if the pthread_create exist failed with the following output:
+Change Dir: /home/augusto/aom/build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_1fd63/fast"
+/usr/bin/make -f CMakeFiles/cmTC_1fd63.dir/build.make CMakeFiles/cmTC_1fd63.dir/build
+make[1]: Entering directory '/home/augusto/aom/build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_1fd63.dir/CheckSymbolExists.c.o
+/usr/bin/cc     -o CMakeFiles/cmTC_1fd63.dir/CheckSymbolExists.c.o   -c /home/augusto/aom/build/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_1fd63
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_1fd63.dir/link.txt --verbose=1
+/usr/bin/cc       CMakeFiles/cmTC_1fd63.dir/CheckSymbolExists.c.o  -o cmTC_1fd63 
+CMakeFiles/cmTC_1fd63.dir/CheckSymbolExists.c.o: In function `main':
+CheckSymbolExists.c:(.text+0x16): undefined reference to `pthread_create'
+collect2: error: ld returned 1 exit status
+CMakeFiles/cmTC_1fd63.dir/build.make:97: recipe for target 'cmTC_1fd63' failed
+make[1]: *** [cmTC_1fd63] Error 1
+make[1]: Leaving directory '/home/augusto/aom/build/CMakeFiles/CMakeTmp'
+Makefile:126: recipe for target 'cmTC_1fd63/fast' failed
+make: *** [cmTC_1fd63/fast] Error 2
+
+File /home/augusto/aom/build/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <pthread.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef pthread_create
+  return ((int*)(&pthread_create))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+
+Determining if the function pthread_create exists in the pthreads failed with the following output:
+Change Dir: /home/augusto/aom/build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_3ef5b/fast"
+/usr/bin/make -f CMakeFiles/cmTC_3ef5b.dir/build.make CMakeFiles/cmTC_3ef5b.dir/build
+make[1]: Entering directory '/home/augusto/aom/build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_3ef5b.dir/CheckFunctionExists.c.o
+/usr/bin/cc    -DCHECK_FUNCTION_EXISTS=pthread_create   -o CMakeFiles/cmTC_3ef5b.dir/CheckFunctionExists.c.o   -c /usr/share/cmake-3.5/Modules/CheckFunctionExists.c
+Linking C executable cmTC_3ef5b
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_3ef5b.dir/link.txt --verbose=1
+/usr/bin/cc   -DCHECK_FUNCTION_EXISTS=pthread_create    CMakeFiles/cmTC_3ef5b.dir/CheckFunctionExists.c.o  -o cmTC_3ef5b -lpthreads 
+/usr/bin/ld: cannot find -lpthreads
+collect2: error: ld returned 1 exit status
+CMakeFiles/cmTC_3ef5b.dir/build.make:97: recipe for target 'cmTC_3ef5b' failed
+make[1]: *** [cmTC_3ef5b] Error 1
+make[1]: Leaving directory '/home/augusto/aom/build/CMakeFiles/CMakeTmp'
+Makefile:126: recipe for target 'cmTC_3ef5b/fast' failed
+make: *** [cmTC_3ef5b/fast] Error 2
+
+
+Performing C++ SOURCE FILE Test CXX_FLAG_SUPPORTED failed with the following output:
+Change Dir: /home/augusto/aom/build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_07772/fast"
+/usr/bin/make -f CMakeFiles/cmTC_07772.dir/build.make CMakeFiles/cmTC_07772.dir/build
+make[1]: Entering directory '/home/augusto/aom/build/CMakeFiles/CMakeTmp'
+Building CXX object CMakeFiles/cmTC_07772.dir/src.cxx.o
+/usr/bin/c++     -DCXX_FLAG_SUPPORTED   -Wimplicit-function-declaration -o CMakeFiles/cmTC_07772.dir/src.cxx.o -c /home/augusto/aom/build/CMakeFiles/CMakeTmp/src.cxx
+cc1plus: warning: command line option '-Wimplicit-function-declaration' is valid for C/ObjC but not for C++
+Linking CXX executable cmTC_07772
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_07772.dir/link.txt --verbose=1
+/usr/bin/c++    -DCXX_FLAG_SUPPORTED    CMakeFiles/cmTC_07772.dir/src.cxx.o  -o cmTC_07772 -lm 
+make[1]: Leaving directory '/home/augusto/aom/build/CMakeFiles/CMakeTmp'
+
+Source file was:
+int main() { return 0; }
+Performing C SOURCE FILE Test C_FLAG_SUPPORTED failed with the following output:
+Change Dir: /home/augusto/aom/build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_18ffc/fast"
+/usr/bin/make -f CMakeFiles/cmTC_18ffc.dir/build.make CMakeFiles/cmTC_18ffc.dir/build
+make[1]: Entering directory '/home/augusto/aom/build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_18ffc.dir/src.c.o
+/usr/bin/cc    -DC_FLAG_SUPPORTED   -Wstring-conversion -o CMakeFiles/cmTC_18ffc.dir/src.c.o   -c /home/augusto/aom/build/CMakeFiles/CMakeTmp/src.c
+cc: error: unrecognized command line option '-Wstring-conversion'
+CMakeFiles/cmTC_18ffc.dir/build.make:65: recipe for target 'CMakeFiles/cmTC_18ffc.dir/src.c.o' failed
+make[1]: *** [CMakeFiles/cmTC_18ffc.dir/src.c.o] Error 1
+make[1]: Leaving directory '/home/augusto/aom/build/CMakeFiles/CMakeTmp'
+Makefile:126: recipe for target 'cmTC_18ffc/fast' failed
+make: *** [cmTC_18ffc/fast] Error 2
+
+Source file was:
+int main(void) { return 0; }
+Performing C++ SOURCE FILE Test CXX_FLAG_SUPPORTED failed with the following output:
+Change Dir: /home/augusto/aom/build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_bf6d2/fast"
+/usr/bin/make -f CMakeFiles/cmTC_bf6d2.dir/build.make CMakeFiles/cmTC_bf6d2.dir/build
+make[1]: Entering directory '/home/augusto/aom/build/CMakeFiles/CMakeTmp'
+Building CXX object CMakeFiles/cmTC_bf6d2.dir/src.cxx.o
+/usr/bin/c++     -DCXX_FLAG_SUPPORTED   -Wstring-conversion -o CMakeFiles/cmTC_bf6d2.dir/src.cxx.o -c /home/augusto/aom/build/CMakeFiles/CMakeTmp/src.cxx
+c++: error: unrecognized command line option '-Wstring-conversion'
+CMakeFiles/cmTC_bf6d2.dir/build.make:65: recipe for target 'CMakeFiles/cmTC_bf6d2.dir/src.cxx.o' failed
+make[1]: *** [CMakeFiles/cmTC_bf6d2.dir/src.cxx.o] Error 1
+make[1]: Leaving directory '/home/augusto/aom/build/CMakeFiles/CMakeTmp'
+Makefile:126: recipe for target 'cmTC_bf6d2/fast' failed
+make: *** [cmTC_bf6d2/fast] Error 2
+
+Source file was:
+int main() { return 0; }
+Performing C SOURCE FILE Test C_FLAG_SUPPORTED failed with the following output:
+Change Dir: /home/augusto/aom/build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_42043/fast"
+/usr/bin/make -f CMakeFiles/cmTC_42043.dir/build.make CMakeFiles/cmTC_42043.dir/build
+make[1]: Entering directory '/home/augusto/aom/build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_42043.dir/src.c.o
+/usr/bin/cc    -DC_FLAG_SUPPORTED   -Wshorten-64-to-32 -o CMakeFiles/cmTC_42043.dir/src.c.o   -c /home/augusto/aom/build/CMakeFiles/CMakeTmp/src.c
+cc: error: unrecognized command line option '-Wshorten-64-to-32'
+CMakeFiles/cmTC_42043.dir/build.make:65: recipe for target 'CMakeFiles/cmTC_42043.dir/src.c.o' failed
+make[1]: *** [CMakeFiles/cmTC_42043.dir/src.c.o] Error 1
+make[1]: Leaving directory '/home/augusto/aom/build/CMakeFiles/CMakeTmp'
+Makefile:126: recipe for target 'cmTC_42043/fast' failed
+make: *** [cmTC_42043/fast] Error 2
+
+Source file was:
+int main(void) { return 0; }

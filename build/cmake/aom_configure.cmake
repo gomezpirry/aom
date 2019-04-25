@@ -169,6 +169,10 @@ if(CONFIG_ANALYZER)
   include(${wxWidgets_USE_FILE})
 endif()
 
+if(ENABLE_SPARSE)
+  find_package(OpenCV REQUIRED)
+endif()
+
 if(NOT MSVC AND CMAKE_C_COMPILER_ID MATCHES "GNU\|Clang")
   set(CONFIG_GCC 1)
 endif()

@@ -613,6 +613,16 @@ enum aome_enc_control_id {
    */
   AV1E_SET_QM_MAX,
 
+  /*!\brief k-codwords of dictionary for sparse coding.
+   *
+   * AOM can use sparse coding
+   *
+   * By default, the dictionary have 512 k-codewords
+   *
+   * Experiment: SPARSE_CODING
+   */
+  AV1E_SET_K_CODEWORDS,
+
   /*!\brief Codec control function to set the min quant matrix flatness.
    *
    * AOM can operate with different ranges of quantisation matrices.

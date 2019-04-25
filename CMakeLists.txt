@@ -133,6 +133,14 @@ list(APPEND AOM_COMMON_APP_UTIL_SOURCES
             "${AOM_ROOT}/common/rawenc.h"
             "${AOM_ROOT}/common/y4menc.c"
             "${AOM_ROOT}/common/y4menc.h")
+        
+list(APPEND AOM_SPARSE_UTIL_SOURCES
+			"${AOM_ROOT}/sparse_utils/operations.h"
+			"${AOM_ROOT}/sparse_utils/operations.c"
+			"${AOM_ROOT}/sparse_utils/image_handler.h"
+			"${AOM_ROOT}/sparse_utils/image_handler.c"
+			"${AOM_ROOT}/sparse_utils/dictionary_learning.h"
+			"${AOM_ROOT}/sparse_utils/dictionary_learning.c")		
 
 list(APPEND AOM_DECODER_APP_UTIL_SOURCES "${AOM_ROOT}/common/ivfdec.c"
             "${AOM_ROOT}/common/ivfdec.h" "${AOM_ROOT}/common/obudec.c"
@@ -222,6 +230,13 @@ setup_aom_ports_targets()
 setup_aom_util_targets()
 setup_aom_scale_targets()
 setup_av1_targets()
+
+if(ENABLE_SPARSE)
+  include_directories(${OpenCV_INCLUDE_DIRS})
+  add_library(aom_sparse OBJECT ${AOM_SPARSE_UTIL_SOURCES})
+  set(AOM_LIB_TARGETS ${AOM_LIB_TARGETS} aom_sparse)
+  target_sources(aom PRIVATE $<TARGET_OBJECTS:aom_sparse>)
+endif()
 
 # Make all library targets depend on aom_rtcd to make sure it builds first.
 foreach(aom_lib ${AOM_LIB_TARGETS})
@@ -324,7 +339,8 @@ if(CONFIG_AV1_ENCODER)
     add_executable(aomenc "${AOM_ROOT}/apps/aomenc.c"
                    $<TARGET_OBJECTS:aom_common_app_util>
                    $<TARGET_OBJECTS:aom_encoder_app_util>
-                   $<TARGET_OBJECTS:aom_encoder_stats>)
+                   $<TARGET_OBJECTS:aom_encoder_stats>
+                   $<TARGET_OBJECTS:aom_sparse>)
     add_executable(lossless_encoder "${AOM_ROOT}/examples/lossless_encoder.c"
                    $<TARGET_OBJECTS:aom_common_app_util>
                    $<TARGET_OBJECTS:aom_encoder_app_util>)
@@ -443,7 +459,7 @@ if(ENABLE_EXAMPLES AND CONFIG_AV1_ENCODER AND CONFIG_AV1_DECODER)
 endif()
 
 foreach(aom_app ${AOM_APP_TARGETS})
-  target_link_libraries(${aom_app} ${AOM_LIB_LINK_TYPE} aom)
+  target_link_libraries(${aom_app} ${AOM_LIB_LINK_TYPE} ${OpenCV_LIBS} aom)
 endforeach()
 
 if(ENABLE_EXAMPLES OR ENABLE_TESTS OR ENABLE_TOOLS)

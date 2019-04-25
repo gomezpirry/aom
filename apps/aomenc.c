@@ -37,6 +37,9 @@
 #include "common/tools_common.h"
 #include "common/warnings.h"
 
+#include "sparse_utils/image_handler.h"
+#include "sparse_utils/dictionary_learning.h"
+
 #if CONFIG_WEBM_IO
 #include "common/webmenc.h"
 #endif
@@ -57,7 +60,7 @@ static size_t wrap_fread(void *ptr, size_t size, size_t nmemb, FILE *stream) {
 #define fread wrap_fread
 
 static size_t wrap_fwrite(const void *ptr, size_t size, size_t nmemb,
-                          FILE *stream) {
+    FILE *stream) {
   return fwrite(ptr, size, nmemb, stream);
 }
 #define fwrite wrap_fwrite
@@ -65,7 +68,7 @@ static size_t wrap_fwrite(const void *ptr, size_t size, size_t nmemb,
 static const char *exec_name;
 
 static void warn_or_exit_on_errorv(aom_codec_ctx_t *ctx, int fatal,
-                                   const char *s, va_list ap) {
+    const char *s, va_list ap) {
   if (ctx->err) {
     const char *detail = aom_codec_error_detail(ctx);
 
@@ -87,7 +90,7 @@ static void ctx_exit_on_error(aom_codec_ctx_t *ctx, const char *s, ...) {
 }
 
 static void warn_or_exit_on_error(aom_codec_ctx_t *ctx, int fatal,
-                                  const char *s, ...) {
+    const char *s, ...) {
   va_list ap;
 
   va_start(ap, s);
@@ -167,10 +170,10 @@ static const arg_def_t ext_partition =
 #endif
 
 static const struct arg_enum_list test_decode_enum[] = {
-  { "off", TEST_DECODE_OFF },
-  { "fatal", TEST_DECODE_FATAL },
-  { "warn", TEST_DECODE_WARN },
-  { NULL, 0 }
+    { "off", TEST_DECODE_OFF },
+    { "fatal", TEST_DECODE_FATAL },
+    { "warn", TEST_DECODE_WARN },
+    { NULL, 0 }
 };
 static const arg_def_t recontest = ARG_DEF_ENUM(
     NULL, "test-decode", 1, "Test encode/decode mismatch", test_decode_enum);
@@ -186,12 +189,12 @@ static const arg_def_t rate_hist_n =
     ARG_DEF(NULL, "rate-hist", 1, "Show rate histogram (n-buckets)");
 static const arg_def_t disable_warnings =
     ARG_DEF(NULL, "disable-warnings", 0,
-            "Disable warnings about potentially incorrect encode settings.");
+        "Disable warnings about potentially incorrect encode settings.");
 static const arg_def_t disable_warning_prompt =
     ARG_DEF("y", "disable-warning-prompt", 0,
-            "Display warnings, but do not prompt user to continue.");
+        "Display warnings, but do not prompt user to continue.");
 static const struct arg_enum_list bitdepth_enum[] = {
-  { "8", AOM_BITS_8 }, { "10", AOM_BITS_10 }, { "12", AOM_BITS_12 }, { NULL, 0 }
+    { "8", AOM_BITS_8 }, { "10", AOM_BITS_10 }, { "12", AOM_BITS_12 }, { NULL, 0 }
 };
 
 static const arg_def_t bitdeptharg = ARG_DEF_ENUM(
@@ -208,29 +211,29 @@ static const arg_def_t input_chroma_subsampling_y = ARG_DEF(
 
 static const arg_def_t *main_args[] = { &help,
 #if CONFIG_FILEOPTIONS
-                                        &use_cfg,
+    &use_cfg,
 #endif
-                                        &debugmode,
-                                        &outputfile,
-                                        &codecarg,
-                                        &passes,
-                                        &pass_arg,
-                                        &fpf_name,
-                                        &limit,
-                                        &skip,
-                                        &good_dl,
-                                        &quietarg,
-                                        &verbosearg,
-                                        &psnrarg,
-                                        &use_webm,
-                                        &use_ivf,
-                                        &use_obu,
-                                        &q_hist_n,
-                                        &rate_hist_n,
-                                        &disable_warnings,
-                                        &disable_warning_prompt,
-                                        &recontest,
-                                        NULL };
+    &debugmode,
+    &outputfile,
+    &codecarg,
+    &passes,
+    &pass_arg,
+    &fpf_name,
+    &limit,
+    &skip,
+    &good_dl,
+    &quietarg,
+    &verbosearg,
+    &psnrarg,
+    &use_webm,
+    &use_ivf,
+    &use_obu,
+    &q_hist_n,
+    &rate_hist_n,
+    &disable_warnings,
+    &disable_warning_prompt,
+    &recontest,
+    NULL };
 
 static const arg_def_t usage =
     ARG_DEF("u", "usage", 1, "Usage profile number to use");
@@ -246,12 +249,12 @@ static const arg_def_t forced_max_frame_height = ARG_DEF(
     NULL, "forced_max_frame_height", 0, "Maximum frame height value to force");
 #if CONFIG_WEBM_IO
 static const struct arg_enum_list stereo_mode_enum[] = {
-  { "mono", STEREO_FORMAT_MONO },
-  { "left-right", STEREO_FORMAT_LEFT_RIGHT },
-  { "bottom-top", STEREO_FORMAT_BOTTOM_TOP },
-  { "top-bottom", STEREO_FORMAT_TOP_BOTTOM },
-  { "right-left", STEREO_FORMAT_RIGHT_LEFT },
-  { NULL, 0 }
+    { "mono", STEREO_FORMAT_MONO },
+    { "left-right", STEREO_FORMAT_LEFT_RIGHT },
+    { "bottom-top", STEREO_FORMAT_BOTTOM_TOP },
+    { "top-bottom", STEREO_FORMAT_TOP_BOTTOM },
+    { "right-left", STEREO_FORMAT_RIGHT_LEFT },
+    { NULL, 0 }
 };
 static const arg_def_t stereo_mode = ARG_DEF_ENUM(
     NULL, "stereo-mode", 1, "Stereo 3D video format", stereo_mode_enum);
@@ -260,40 +263,67 @@ static const arg_def_t timebase = ARG_DEF(
     NULL, "timebase", 1, "Output timestamp precision (fractional seconds)");
 static const arg_def_t global_error_resilient =
     ARG_DEF(NULL, "global-error-resilient", 1,
-            "Enable global error resiliency features");
+        "Enable global error resiliency features");
 static const arg_def_t lag_in_frames =
     ARG_DEF(NULL, "lag-in-frames", 1, "Max number of frames to lag");
 static const arg_def_t large_scale_tile =
     ARG_DEF(NULL, "large-scale-tile", 1,
-            "Large scale tile coding (0: off (default), 1: on)");
+        "Large scale tile coding (0: off (default), 1: on)");
 static const arg_def_t monochrome =
     ARG_DEF(NULL, "monochrome", 0, "Monochrome video (no chroma planes)");
 static const arg_def_t full_still_picture_hdr = ARG_DEF(
     NULL, "full-still-picture-hdr", 0, "Use full header for still picture");
 
 static const arg_def_t *global_args[] = { &use_yv12,
-                                          &use_i420,
-                                          &use_i422,
-                                          &use_i444,
-                                          &usage,
-                                          &threads,
-                                          &profile,
-                                          &width,
-                                          &height,
-                                          &forced_max_frame_width,
-                                          &forced_max_frame_height,
+    &use_i420,
+    &use_i422,
+    &use_i444,
+    &usage,
+    &threads,
+    &profile,
+    &width,
+    &height,
+    &forced_max_frame_width,
+    &forced_max_frame_height,
 #if CONFIG_WEBM_IO
-                                          &stereo_mode,
+    &stereo_mode,
 #endif
-                                          &timebase,
-                                          &framerate,
-                                          &global_error_resilient,
-                                          &bitdeptharg,
-                                          &lag_in_frames,
-                                          &large_scale_tile,
-                                          &monochrome,
-                                          &full_still_picture_hdr,
-                                          NULL };
+    &timebase,
+    &framerate,
+    &global_error_resilient,
+    &bitdeptharg,
+    &lag_in_frames,
+    &large_scale_tile,
+    &monochrome,
+    &full_still_picture_hdr,
+    NULL };
+
+
+static const arg_def_t sparse_coding = ARG_DEF(NULL, "enable-sparse", 0,
+    "Enable sparse coding(0: false (default), 1: true)");
+static const arg_def_t k_codewords = ARG_DEF(
+    NULL, "k-codewords", 1, "Number of K-Codewords for sparse Coding, default is 512");
+static const arg_def_t train_dict = ARG_DEF(
+    NULL, "train-dict", 1, "Training Dictionary each n frames");
+static const arg_def_t iterations = ARG_DEF(
+    NULL, "iterations", 1, "Number of iterations for batch OMP");
+static const arg_def_t sparse_depth = ARG_DEF(
+    NULL, "sparse-depth", 1, "Block partition depth for sparse (0=8x8, 1=16x16, 2=32x32, 3=64x64)");
+static const struct arg_enum_list dictionary_enum[] = {
+    { "random", RANDOM },
+    { "k-svd", K_SVD },
+    { NULL, 0 }
+};
+static const arg_def_t  dict_alg = ARG_DEF_ENUM(
+    NULL, "dict-alg", 1, "Dictionary Learning algorithm (default random)", dictionary_enum);
+
+static const arg_def_t *sparse_args[] = { &sparse_coding,
+    &k_codewords,
+    &train_dict,
+    &dict_alg,
+    &iterations,
+    &sparse_depth,
+    NULL };
 
 static const arg_def_t dropframe_thresh =
     ARG_DEF(NULL, "drop-frame", 1, "Temporal resampling threshold (buf %)");
@@ -309,17 +339,17 @@ static const arg_def_t superres_denominator = ARG_DEF(
     NULL, "superres-denominator", 1, "Frame super-resolution denominator");
 static const arg_def_t superres_kf_denominator =
     ARG_DEF(NULL, "superres-kf-denominator", 1,
-            "Frame super-resolution keyframe denominator");
+        "Frame super-resolution keyframe denominator");
 static const arg_def_t superres_qthresh = ARG_DEF(
     NULL, "superres-qthresh", 1, "Frame super-resolution qindex threshold");
 static const arg_def_t superres_kf_qthresh =
     ARG_DEF(NULL, "superres-kf-qthresh", 1,
-            "Frame super-resolution keyframe qindex threshold");
+        "Frame super-resolution keyframe qindex threshold");
 static const struct arg_enum_list end_usage_enum[] = { { "vbr", AOM_VBR },
-                                                       { "cbr", AOM_CBR },
-                                                       { "cq", AOM_CQ },
-                                                       { "q", AOM_Q },
-                                                       { NULL, 0 } };
+    { "cbr", AOM_CBR },
+    { "cq", AOM_CQ },
+    { "q", AOM_Q },
+    { NULL, 0 } };
 static const arg_def_t end_usage =
     ARG_DEF_ENUM(NULL, "end-usage", 1, "Rate control mode", end_usage_enum);
 static const arg_def_t target_bitrate =
@@ -339,24 +369,24 @@ static const arg_def_t buf_initial_sz =
 static const arg_def_t buf_optimal_sz =
     ARG_DEF(NULL, "buf-optimal-sz", 1, "Client optimal buffer size (ms)");
 static const arg_def_t *rc_args[] = { &dropframe_thresh,
-                                      &resize_mode,
-                                      &resize_denominator,
-                                      &resize_kf_denominator,
-                                      &superres_mode,
-                                      &superres_denominator,
-                                      &superres_kf_denominator,
-                                      &superres_qthresh,
-                                      &superres_kf_qthresh,
-                                      &end_usage,
-                                      &target_bitrate,
-                                      &min_quantizer,
-                                      &max_quantizer,
-                                      &undershoot_pct,
-                                      &overshoot_pct,
-                                      &buf_sz,
-                                      &buf_initial_sz,
-                                      &buf_optimal_sz,
-                                      NULL };
+    &resize_mode,
+    &resize_denominator,
+    &resize_kf_denominator,
+    &superres_mode,
+    &superres_denominator,
+    &superres_kf_denominator,
+    &superres_qthresh,
+    &superres_kf_qthresh,
+    &end_usage,
+    &target_bitrate,
+    &min_quantizer,
+    &max_quantizer,
+    &undershoot_pct,
+    &overshoot_pct,
+    &buf_sz,
+    &buf_initial_sz,
+    &buf_optimal_sz,
+    NULL };
 
 static const arg_def_t bias_pct =
     ARG_DEF(NULL, "bias-pct", 1, "CBR/VBR bias (0=CBR, 100=VBR)");
@@ -365,7 +395,7 @@ static const arg_def_t minsection_pct =
 static const arg_def_t maxsection_pct =
     ARG_DEF(NULL, "maxsection-pct", 1, "GOP max bitrate (% of target)");
 static const arg_def_t *rc_twopass_args[] = { &bias_pct, &minsection_pct,
-                                              &maxsection_pct, NULL };
+    &maxsection_pct, NULL };
 static const arg_def_t fwd_kf_enabled =
     ARG_DEF(NULL, "enable-fwd-kf", 1, "Enable forward reference keyframes");
 static const arg_def_t kf_min_dist =
@@ -375,7 +405,7 @@ static const arg_def_t kf_max_dist =
 static const arg_def_t kf_disabled =
     ARG_DEF(NULL, "disable-kf", 0, "Disable keyframe placement");
 static const arg_def_t *kf_args[] = { &fwd_kf_enabled, &kf_min_dist,
-                                      &kf_max_dist, &kf_disabled, NULL };
+    &kf_max_dist, &kf_disabled, NULL };
 static const arg_def_t sframe_dist =
     ARG_DEF(NULL, "sframe-dist", 1, "S-Frame interval (frames)");
 static const arg_def_t sframe_mode =
@@ -395,13 +425,13 @@ static const arg_def_t arnr_maxframes =
 static const arg_def_t arnr_strength =
     ARG_DEF(NULL, "arnr-strength", 1, "AltRef filter strength (0..6)");
 static const struct arg_enum_list tuning_enum[] = {
-  { "psnr", AOM_TUNE_PSNR },
-  { "ssim", AOM_TUNE_SSIM },
+    { "psnr", AOM_TUNE_PSNR },
+    { "ssim", AOM_TUNE_SSIM },
 #ifdef CONFIG_DIST_8X8
-  { "cdef-dist", AOM_TUNE_CDEF_DIST },
-  { "daala-dist", AOM_TUNE_DAALA_DIST },
+    { "cdef-dist", AOM_TUNE_CDEF_DIST },
+    { "daala-dist", AOM_TUNE_DAALA_DIST },
 #endif
-  { NULL, 0 }
+    { NULL, 0 }
 };
 static const arg_def_t tune_metric =
     ARG_DEF_ENUM(NULL, "tune", 1, "Distortion metric tuned with", tuning_enum);
@@ -415,14 +445,14 @@ static const arg_def_t cpu_used_av1 =
     ARG_DEF(NULL, "cpu-used", 1, "CPU Used (0..8)");
 static const arg_def_t rowmtarg =
     ARG_DEF(NULL, "row-mt", 1,
-            "Enable row based multi-threading (0: off (default), 1: on)");
+        "Enable row based multi-threading (0: off (default), 1: on)");
 static const arg_def_t tile_cols =
     ARG_DEF(NULL, "tile-columns", 1, "Number of tile columns to use, log2");
 static const arg_def_t tile_rows =
     ARG_DEF(NULL, "tile-rows", 1, "Number of tile rows to use, log2");
 static const arg_def_t enable_tpl_model =
     ARG_DEF(NULL, "enable-tpl-model", 1,
-            "RDO modulation based on frame temporal dependency");
+        "RDO modulation based on frame temporal dependency");
 static const arg_def_t tile_width =
     ARG_DEF(NULL, "tile-width", 1, "Tile widths (comma separated)");
 static const arg_def_t tile_height =
@@ -431,19 +461,19 @@ static const arg_def_t lossless =
     ARG_DEF(NULL, "lossless", 1, "Lossless mode (0: false (default), 1: true)");
 static const arg_def_t enable_cdef =
     ARG_DEF(NULL, "enable-cdef", 1,
-            "Enable the constrained directional enhancement filter (0: false, "
-            "1: true (default))");
+        "Enable the constrained directional enhancement filter (0: false, "
+        "1: true (default))");
 static const arg_def_t enable_restoration =
     ARG_DEF(NULL, "enable-restoration", 1,
-            "Enable the loop restoration filter (0: false, "
-            "1: true (default))");
+        "Enable the loop restoration filter (0: false, "
+        "1: true (default))");
 static const arg_def_t disable_trellis_quant =
     ARG_DEF(NULL, "disable-trellis-quant", 1,
-            "Disable trellis optimization of quantized coefficients (0: false ("
-            "default) 1: true)");
+        "Disable trellis optimization of quantized coefficients (0: false ("
+        "default) 1: true)");
 static const arg_def_t enable_qm =
     ARG_DEF(NULL, "enable-qm", 1,
-            "Enable quantisation matrices (0: false (default), 1: true)");
+        "Enable quantisation matrices (0: false (default), 1: true)");
 static const arg_def_t qm_min = ARG_DEF(
     NULL, "qm-min", 1, "Min quant matrix flatness (0..15), default is 8");
 static const arg_def_t qm_max = ARG_DEF(
@@ -451,50 +481,50 @@ static const arg_def_t qm_max = ARG_DEF(
 #if CONFIG_DIST_8X8
 static const arg_def_t enable_dist_8x8 =
     ARG_DEF(NULL, "enable-dist-8x8", 1,
-            "Enable dist-8x8 (0: false (default), 1: true)");
+        "Enable dist-8x8 (0: false (default), 1: true)");
 #endif  // CONFIG_DIST_8X8
 static const arg_def_t num_tg = ARG_DEF(
     NULL, "num-tile-groups", 1, "Maximum number of tile groups, default is 1");
 static const arg_def_t mtu_size =
     ARG_DEF(NULL, "mtu-size", 1,
-            "MTU size for a tile group, default is 0 (no MTU targeting), "
-            "overrides maximum number of tile groups");
+        "MTU size for a tile group, default is 0 (no MTU targeting), "
+        "overrides maximum number of tile groups");
 static const struct arg_enum_list timing_info_enum[] = {
-  { "unspecified", AOM_TIMING_UNSPECIFIED },
-  { "constant", AOM_TIMING_EQUAL },
-  { "model", AOM_TIMING_DEC_MODEL },
-  { NULL, 0 }
+    { "unspecified", AOM_TIMING_UNSPECIFIED },
+    { "constant", AOM_TIMING_EQUAL },
+    { "model", AOM_TIMING_DEC_MODEL },
+    { NULL, 0 }
 };
 static const arg_def_t timing_info =
     ARG_DEF_ENUM(NULL, "timing-info", 1,
-                 "Signal timing info in the bitstream (model unly works for no "
-                 "hidden frames, no super-res yet):",
-                 timing_info_enum);
+        "Signal timing info in the bitstream (model unly works for no "
+        "hidden frames, no super-res yet):",
+        timing_info_enum);
 static const arg_def_t film_grain_test =
     ARG_DEF(NULL, "film-grain-test", 1,
-            "Film grain test vectors (0: none (default), 1: test-1  2: test-2, "
-            "... 16: test-16)");
+        "Film grain test vectors (0: none (default), 1: test-1  2: test-2, "
+        "... 16: test-16)");
 static const arg_def_t film_grain_table =
     ARG_DEF(NULL, "film-grain-table", 1,
-            "Path to file containing film grain parameters");
+        "Path to file containing film grain parameters");
 #if CONFIG_DENOISE
 static const arg_def_t denoise_noise_level =
     ARG_DEF(NULL, "denoise-noise-level", 1,
-            "Amount of noise (from 0 = don't denoise, to 50)");
+        "Amount of noise (from 0 = don't denoise, to 50)");
 static const arg_def_t denoise_block_size =
     ARG_DEF(NULL, "denoise-block-size", 1, "Denoise block size (default = 32)");
 #endif
 static const arg_def_t enable_ref_frame_mvs =
     ARG_DEF(NULL, "enable-ref-frame-mvs", 1,
-            "Enable temporal mv prediction (default is 1)");
+        "Enable temporal mv prediction (default is 1)");
 static const arg_def_t frame_parallel_decoding =
     ARG_DEF(NULL, "frame-parallel", 1,
-            "Enable frame parallel decodability features "
-            "(0: false (default), 1: true)");
+        "Enable frame parallel decodability features "
+        "(0: false (default), 1: true)");
 static const arg_def_t error_resilient_mode =
     ARG_DEF(NULL, "error-resilient", 1,
-            "Enable error resilient features "
-            "(0: false (default), 1: true)");
+        "Enable error resilient features "
+        "(0: false (default), 1: true)");
 static const arg_def_t aq_mode = ARG_DEF(
     NULL, "aq-mode", 1,
     "Adaptive quantization mode (0: off (default), 1: variance 2: complexity, "
@@ -504,7 +534,7 @@ static const arg_def_t deltaq_mode = ARG_DEF(
     "Delta qindex mode (0: off (default), 1: deltaq 2: deltaq + deltalf)");
 static const arg_def_t frame_periodic_boost =
     ARG_DEF(NULL, "frame-boost", 1,
-            "Enable frame periodic boost (0: off (default), 1: on)");
+        "Enable frame periodic boost (0: off (default), 1: on)");
 static const arg_def_t gf_cbr_boost_pct = ARG_DEF(
     NULL, "gf-cbr-boost", 1, "Boost for Golden Frame in CBR mode (pct)");
 static const arg_def_t max_inter_rate_pct =
@@ -517,19 +547,19 @@ static const arg_def_t max_gf_interval = ARG_DEF(
     "max gf/arf frame interval (default 0, indicating in-built behavior)");
 
 static const struct arg_enum_list color_primaries_enum[] = {
-  { "bt709", AOM_CICP_CP_BT_709 },
-  { "unspecified", AOM_CICP_CP_UNSPECIFIED },
-  { "bt601", AOM_CICP_CP_BT_601 },
-  { "bt470m", AOM_CICP_CP_BT_470_M },
-  { "bt470bg", AOM_CICP_CP_BT_470_B_G },
-  { "smpte240", AOM_CICP_CP_SMPTE_240 },
-  { "film", AOM_CICP_CP_GENERIC_FILM },
-  { "bt2020", AOM_CICP_CP_BT_2020 },
-  { "xyz", AOM_CICP_CP_XYZ },
-  { "smpte431", AOM_CICP_CP_SMPTE_431 },
-  { "smpte432", AOM_CICP_CP_SMPTE_432 },
-  { "ebu3213", AOM_CICP_CP_EBU_3213 },
-  { NULL, 0 }
+    { "bt709", AOM_CICP_CP_BT_709 },
+    { "unspecified", AOM_CICP_CP_UNSPECIFIED },
+    { "bt601", AOM_CICP_CP_BT_601 },
+    { "bt470m", AOM_CICP_CP_BT_470_M },
+    { "bt470bg", AOM_CICP_CP_BT_470_B_G },
+    { "smpte240", AOM_CICP_CP_SMPTE_240 },
+    { "film", AOM_CICP_CP_GENERIC_FILM },
+    { "bt2020", AOM_CICP_CP_BT_2020 },
+    { "xyz", AOM_CICP_CP_XYZ },
+    { "smpte431", AOM_CICP_CP_SMPTE_431 },
+    { "smpte432", AOM_CICP_CP_SMPTE_432 },
+    { "ebu3213", AOM_CICP_CP_EBU_3213 },
+    { NULL, 0 }
 };
 
 static const arg_def_t input_color_primaries = ARG_DEF_ENUM(
@@ -537,47 +567,47 @@ static const arg_def_t input_color_primaries = ARG_DEF_ENUM(
     "Color primaries (CICP) of input content:", color_primaries_enum);
 
 static const struct arg_enum_list transfer_characteristics_enum[] = {
-  { "unspecified", AOM_CICP_CP_UNSPECIFIED },
-  { "bt709", AOM_CICP_TC_BT_709 },
-  { "bt470m", AOM_CICP_TC_BT_470_M },
-  { "bt470bg", AOM_CICP_TC_BT_470_B_G },
-  { "bt601", AOM_CICP_TC_BT_601 },
-  { "smpte240", AOM_CICP_TC_SMPTE_240 },
-  { "lin", AOM_CICP_TC_LINEAR },
-  { "log100", AOM_CICP_TC_LOG_100 },
-  { "log100sq10", AOM_CICP_TC_LOG_100_SQRT10 },
-  { "iec61966", AOM_CICP_TC_IEC_61966 },
-  { "bt1361", AOM_CICP_TC_BT_1361 },
-  { "srgb", AOM_CICP_TC_SRGB },
-  { "bt2020-10bit", AOM_CICP_TC_BT_2020_10_BIT },
-  { "bt2020-12bit", AOM_CICP_TC_BT_2020_12_BIT },
-  { "smpte2084", AOM_CICP_TC_SMPTE_2084 },
-  { "hlg", AOM_CICP_TC_HLG },
-  { "smpte428", AOM_CICP_TC_SMPTE_428 },
-  { NULL, 0 }
+    { "unspecified", AOM_CICP_CP_UNSPECIFIED },
+    { "bt709", AOM_CICP_TC_BT_709 },
+    { "bt470m", AOM_CICP_TC_BT_470_M },
+    { "bt470bg", AOM_CICP_TC_BT_470_B_G },
+    { "bt601", AOM_CICP_TC_BT_601 },
+    { "smpte240", AOM_CICP_TC_SMPTE_240 },
+    { "lin", AOM_CICP_TC_LINEAR },
+    { "log100", AOM_CICP_TC_LOG_100 },
+    { "log100sq10", AOM_CICP_TC_LOG_100_SQRT10 },
+    { "iec61966", AOM_CICP_TC_IEC_61966 },
+    { "bt1361", AOM_CICP_TC_BT_1361 },
+    { "srgb", AOM_CICP_TC_SRGB },
+    { "bt2020-10bit", AOM_CICP_TC_BT_2020_10_BIT },
+    { "bt2020-12bit", AOM_CICP_TC_BT_2020_12_BIT },
+    { "smpte2084", AOM_CICP_TC_SMPTE_2084 },
+    { "hlg", AOM_CICP_TC_HLG },
+    { "smpte428", AOM_CICP_TC_SMPTE_428 },
+    { NULL, 0 }
 };
 
 static const arg_def_t input_transfer_characteristics =
     ARG_DEF_ENUM(NULL, "transfer-characteristics", 1,
-                 "Transfer characteristics (CICP) of input content:",
-                 transfer_characteristics_enum);
+        "Transfer characteristics (CICP) of input content:",
+        transfer_characteristics_enum);
 
 static const struct arg_enum_list matrix_coefficients_enum[] = {
-  { "identity", AOM_CICP_MC_IDENTITY },
-  { "bt709", AOM_CICP_MC_BT_709 },
-  { "unspecified", AOM_CICP_MC_UNSPECIFIED },
-  { "fcc73", AOM_CICP_MC_FCC },
-  { "bt470bg", AOM_CICP_MC_BT_470_B_G },
-  { "bt601", AOM_CICP_MC_BT_601 },
-  { "smpte240", AOM_CICP_CP_SMPTE_240 },
-  { "ycgco", AOM_CICP_MC_SMPTE_YCGCO },
-  { "bt2020ncl", AOM_CICP_MC_BT_2020_NCL },
-  { "bt2020cl", AOM_CICP_MC_BT_2020_CL },
-  { "smpte2085", AOM_CICP_MC_SMPTE_2085 },
-  { "chromncl", AOM_CICP_MC_CHROMAT_NCL },
-  { "chromcl", AOM_CICP_MC_CHROMAT_CL },
-  { "ictcp", AOM_CICP_MC_ICTCP },
-  { NULL, 0 }
+    { "identity", AOM_CICP_MC_IDENTITY },
+    { "bt709", AOM_CICP_MC_BT_709 },
+    { "unspecified", AOM_CICP_MC_UNSPECIFIED },
+    { "fcc73", AOM_CICP_MC_FCC },
+    { "bt470bg", AOM_CICP_MC_BT_470_B_G },
+    { "bt601", AOM_CICP_MC_BT_601 },
+    { "smpte240", AOM_CICP_CP_SMPTE_240 },
+    { "ycgco", AOM_CICP_MC_SMPTE_YCGCO },
+    { "bt2020ncl", AOM_CICP_MC_BT_2020_NCL },
+    { "bt2020cl", AOM_CICP_MC_BT_2020_CL },
+    { "smpte2085", AOM_CICP_MC_SMPTE_2085 },
+    { "chromncl", AOM_CICP_MC_CHROMAT_NCL },
+    { "chromcl", AOM_CICP_MC_CHROMAT_CL },
+    { "ictcp", AOM_CICP_MC_ICTCP },
+    { NULL, 0 }
 };
 
 static const arg_def_t input_matrix_coefficients = ARG_DEF_ENUM(
@@ -585,21 +615,21 @@ static const arg_def_t input_matrix_coefficients = ARG_DEF_ENUM(
     "Matrix coefficients (CICP) of input content:", matrix_coefficients_enum);
 
 static const struct arg_enum_list chroma_sample_position_enum[] = {
-  { "unknown", AOM_CSP_UNKNOWN },
-  { "vertical", AOM_CSP_VERTICAL },
-  { "colocated", AOM_CSP_COLOCATED },
-  { NULL, 0 }
+    { "unknown", AOM_CSP_UNKNOWN },
+    { "vertical", AOM_CSP_VERTICAL },
+    { "colocated", AOM_CSP_COLOCATED },
+    { NULL, 0 }
 };
 
 static const arg_def_t input_chroma_sample_position =
     ARG_DEF_ENUM(NULL, "chroma-sample-position", 1,
-                 "The chroma sample position when chroma 4:2:0 is signaled:",
-                 chroma_sample_position_enum);
+        "The chroma sample position when chroma 4:2:0 is signaled:",
+        chroma_sample_position_enum);
 
 static const struct arg_enum_list tune_content_enum[] = {
-  { "default", AOM_CONTENT_DEFAULT },
-  { "screen", AOM_CONTENT_SCREEN },
-  { NULL, 0 }
+    { "default", AOM_CONTENT_DEFAULT },
+    { "screen", AOM_CONTENT_SCREEN },
+    { NULL, 0 }
 };
 
 static const arg_def_t tune_content = ARG_DEF_ENUM(
@@ -607,139 +637,139 @@ static const arg_def_t tune_content = ARG_DEF_ENUM(
 
 static const arg_def_t cdf_update_mode =
     ARG_DEF(NULL, "cdf-update-mode", 1,
-            "CDF update mode for entropy coding "
-            "(0: no CDF update; 1: update CDF on all frames(default); "
-            "2: selectively update CDF on some frames");
+        "CDF update mode for entropy coding "
+        "(0: no CDF update; 1: update CDF on all frames(default); "
+        "2: selectively update CDF on some frames");
 
 static const struct arg_enum_list superblock_size_enum[] = {
-  { "dynamic", AOM_SUPERBLOCK_SIZE_DYNAMIC },
-  { "64", AOM_SUPERBLOCK_SIZE_64X64 },
-  { "128", AOM_SUPERBLOCK_SIZE_128X128 },
-  { NULL, 0 }
+    { "dynamic", AOM_SUPERBLOCK_SIZE_DYNAMIC },
+    { "64", AOM_SUPERBLOCK_SIZE_64X64 },
+    { "128", AOM_SUPERBLOCK_SIZE_128X128 },
+    { NULL, 0 }
 };
 static const arg_def_t superblock_size = ARG_DEF_ENUM(
     NULL, "sb-size", 1, "Superblock size to use", superblock_size_enum);
 
 static const arg_def_t *av1_args[] = { &cpu_used_av1,
-                                       &auto_altref,
-                                       &sharpness,
-                                       &static_thresh,
-                                       &rowmtarg,
-                                       &tile_cols,
-                                       &tile_rows,
-                                       &enable_tpl_model,
-                                       &arnr_maxframes,
-                                       &arnr_strength,
-                                       &tune_metric,
-                                       &cq_level,
-                                       &max_intra_rate_pct,
-                                       &max_inter_rate_pct,
-                                       &gf_cbr_boost_pct,
-                                       &lossless,
-                                       &enable_cdef,
-                                       &enable_restoration,
-                                       &disable_trellis_quant,
-                                       &enable_qm,
-                                       &qm_min,
-                                       &qm_max,
+    &auto_altref,
+    &sharpness,
+    &static_thresh,
+    &rowmtarg,
+    &tile_cols,
+    &tile_rows,
+    &enable_tpl_model,
+    &arnr_maxframes,
+    &arnr_strength,
+    &tune_metric,
+    &cq_level,
+    &max_intra_rate_pct,
+    &max_inter_rate_pct,
+    &gf_cbr_boost_pct,
+    &lossless,
+    &enable_cdef,
+    &enable_restoration,
+    &disable_trellis_quant,
+    &enable_qm,
+    &qm_min,
+    &qm_max,
 #if CONFIG_DIST_8X8
-                                       &enable_dist_8x8,
+    &enable_dist_8x8,
 #endif
-                                       &frame_parallel_decoding,
-                                       &error_resilient_mode,
-                                       &aq_mode,
-                                       &deltaq_mode,
-                                       &frame_periodic_boost,
-                                       &noise_sens,
-                                       &tune_content,
-                                       &cdf_update_mode,
-                                       &input_color_primaries,
-                                       &input_transfer_characteristics,
-                                       &input_matrix_coefficients,
-                                       &input_chroma_sample_position,
-                                       &min_gf_interval,
-                                       &max_gf_interval,
-                                       &superblock_size,
-                                       &num_tg,
-                                       &mtu_size,
-                                       &timing_info,
-                                       &film_grain_test,
-                                       &film_grain_table,
+    &frame_parallel_decoding,
+    &error_resilient_mode,
+    &aq_mode,
+    &deltaq_mode,
+    &frame_periodic_boost,
+    &noise_sens,
+    &tune_content,
+    &cdf_update_mode,
+    &input_color_primaries,
+    &input_transfer_characteristics,
+    &input_matrix_coefficients,
+    &input_chroma_sample_position,
+    &min_gf_interval,
+    &max_gf_interval,
+    &superblock_size,
+    &num_tg,
+    &mtu_size,
+    &timing_info,
+    &film_grain_test,
+    &film_grain_table,
 #if CONFIG_DENOISE
-                                       &denoise_noise_level,
-                                       &denoise_block_size,
+    &denoise_noise_level,
+    &denoise_block_size,
 #endif
-                                       &enable_ref_frame_mvs,
-                                       &bitdeptharg,
-                                       &inbitdeptharg,
-                                       &input_chroma_subsampling_x,
-                                       &input_chroma_subsampling_y,
-                                       &sframe_dist,
-                                       &sframe_mode,
-                                       &save_as_annexb,
-                                       NULL };
+    &enable_ref_frame_mvs,
+    &bitdeptharg,
+    &inbitdeptharg,
+    &input_chroma_subsampling_x,
+    &input_chroma_subsampling_y,
+    &sframe_dist,
+    &sframe_mode,
+    &save_as_annexb,
+    NULL };
 static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
-                                        AOME_SET_ENABLEAUTOALTREF,
-                                        AOME_SET_SHARPNESS,
-                                        AOME_SET_STATIC_THRESHOLD,
-                                        AV1E_SET_ROW_MT,
-                                        AV1E_SET_TILE_COLUMNS,
-                                        AV1E_SET_TILE_ROWS,
-                                        AV1E_SET_ENABLE_TPL_MODEL,
-                                        AOME_SET_ARNR_MAXFRAMES,
-                                        AOME_SET_ARNR_STRENGTH,
-                                        AOME_SET_TUNING,
-                                        AOME_SET_CQ_LEVEL,
-                                        AOME_SET_MAX_INTRA_BITRATE_PCT,
-                                        AV1E_SET_MAX_INTER_BITRATE_PCT,
-                                        AV1E_SET_GF_CBR_BOOST_PCT,
-                                        AV1E_SET_LOSSLESS,
-                                        AV1E_SET_ENABLE_CDEF,
-                                        AV1E_SET_ENABLE_RESTORATION,
-                                        AV1E_SET_DISABLE_TRELLIS_QUANT,
-                                        AV1E_SET_ENABLE_QM,
-                                        AV1E_SET_QM_MIN,
-                                        AV1E_SET_QM_MAX,
+    AOME_SET_ENABLEAUTOALTREF,
+    AOME_SET_SHARPNESS,
+    AOME_SET_STATIC_THRESHOLD,
+    AV1E_SET_ROW_MT,
+    AV1E_SET_TILE_COLUMNS,
+    AV1E_SET_TILE_ROWS,
+    AV1E_SET_ENABLE_TPL_MODEL,
+    AOME_SET_ARNR_MAXFRAMES,
+    AOME_SET_ARNR_STRENGTH,
+    AOME_SET_TUNING,
+    AOME_SET_CQ_LEVEL,
+    AOME_SET_MAX_INTRA_BITRATE_PCT,
+    AV1E_SET_MAX_INTER_BITRATE_PCT,
+    AV1E_SET_GF_CBR_BOOST_PCT,
+    AV1E_SET_LOSSLESS,
+    AV1E_SET_ENABLE_CDEF,
+    AV1E_SET_ENABLE_RESTORATION,
+    AV1E_SET_DISABLE_TRELLIS_QUANT,
+    AV1E_SET_ENABLE_QM,
+    AV1E_SET_QM_MIN,
+    AV1E_SET_QM_MAX,
 #if CONFIG_DIST_8X8
-                                        AV1E_SET_ENABLE_DIST_8X8,
+    AV1E_SET_ENABLE_DIST_8X8,
 #endif
-                                        AV1E_SET_FRAME_PARALLEL_DECODING,
-                                        AV1E_SET_ERROR_RESILIENT_MODE,
-                                        AV1E_SET_AQ_MODE,
-                                        AV1E_SET_DELTAQ_MODE,
-                                        AV1E_SET_FRAME_PERIODIC_BOOST,
-                                        AV1E_SET_NOISE_SENSITIVITY,
-                                        AV1E_SET_TUNE_CONTENT,
-                                        AV1E_SET_CDF_UPDATE_MODE,
-                                        AV1E_SET_COLOR_PRIMARIES,
-                                        AV1E_SET_TRANSFER_CHARACTERISTICS,
-                                        AV1E_SET_MATRIX_COEFFICIENTS,
-                                        AV1E_SET_CHROMA_SAMPLE_POSITION,
-                                        AV1E_SET_MIN_GF_INTERVAL,
-                                        AV1E_SET_MAX_GF_INTERVAL,
-                                        AV1E_SET_SUPERBLOCK_SIZE,
-                                        AV1E_SET_NUM_TG,
-                                        AV1E_SET_MTU,
-                                        AV1E_SET_TIMING_INFO_TYPE,
-                                        AV1E_SET_FILM_GRAIN_TEST_VECTOR,
-                                        AV1E_SET_FILM_GRAIN_TABLE,
+    AV1E_SET_FRAME_PARALLEL_DECODING,
+    AV1E_SET_ERROR_RESILIENT_MODE,
+    AV1E_SET_AQ_MODE,
+    AV1E_SET_DELTAQ_MODE,
+    AV1E_SET_FRAME_PERIODIC_BOOST,
+    AV1E_SET_NOISE_SENSITIVITY,
+    AV1E_SET_TUNE_CONTENT,
+    AV1E_SET_CDF_UPDATE_MODE,
+    AV1E_SET_COLOR_PRIMARIES,
+    AV1E_SET_TRANSFER_CHARACTERISTICS,
+    AV1E_SET_MATRIX_COEFFICIENTS,
+    AV1E_SET_CHROMA_SAMPLE_POSITION,
+    AV1E_SET_MIN_GF_INTERVAL,
+    AV1E_SET_MAX_GF_INTERVAL,
+    AV1E_SET_SUPERBLOCK_SIZE,
+    AV1E_SET_NUM_TG,
+    AV1E_SET_MTU,
+    AV1E_SET_TIMING_INFO_TYPE,
+    AV1E_SET_FILM_GRAIN_TEST_VECTOR,
+    AV1E_SET_FILM_GRAIN_TABLE,
 #if CONFIG_DENOISE
-                                        AV1E_SET_DENOISE_NOISE_LEVEL,
-                                        AV1E_SET_DENOISE_BLOCK_SIZE,
+    AV1E_SET_DENOISE_NOISE_LEVEL,
+    AV1E_SET_DENOISE_BLOCK_SIZE,
 #endif
-                                        AV1E_SET_ENABLE_REF_FRAME_MVS,
-                                        AV1E_SET_ENABLE_DF,
-                                        AV1E_SET_ENABLE_ORDER_HINT,
-                                        AV1E_SET_ENABLE_JNT_COMP,
-                                        AV1E_SET_ENABLE_SUPERRES,
-                                        0 };
+    AV1E_SET_ENABLE_REF_FRAME_MVS,
+    AV1E_SET_ENABLE_DF,
+    AV1E_SET_ENABLE_ORDER_HINT,
+    AV1E_SET_ENABLE_JNT_COMP,
+    AV1E_SET_ENABLE_SUPERRES,
+    0 };
 #endif  // CONFIG_AV1_ENCODER
 
 static const arg_def_t *no_args[] = { NULL };
 
 static void show_help(FILE *fout, int shorthelp) {
   fprintf(fout, "Usage: %s <options> -o dst_filename src_filename \n",
-          exec_name);
+      exec_name);
 
   if (shorthelp) {
     fprintf(fout, "Use --help to see the full list of options.\n");
@@ -750,6 +780,8 @@ static void show_help(FILE *fout, int shorthelp) {
   arg_show_usage(fout, main_args);
   fprintf(fout, "\nEncoder Global Options:\n");
   arg_show_usage(fout, global_args);
+  fprintf(fout, "\nSparse Coding Options:\n");
+  arg_show_usage(fout, sparse_args);
   fprintf(fout, "\nRate Control Options:\n");
   arg_show_usage(fout, rc_args);
   fprintf(fout, "\nTwopass Rate Control Options:\n");
@@ -760,10 +792,11 @@ static void show_help(FILE *fout, int shorthelp) {
   fprintf(fout, "\nAV1 Specific Options:\n");
   arg_show_usage(fout, av1_args);
 #endif
+  fprintf(fout, "\n        ");
   fprintf(fout,
-          "\nStream timebase (--timebase):\n"
-          "  The desired precision of timestamps in the output, expressed\n"
-          "  in fractional seconds. Default is 1/1000.\n");
+      "\nStream timebase (--timebase):\n"
+      "  The desired precision of timestamps in the output, expressed\n"
+      "  in fractional seconds. Default is 1/1000.\n");
   fprintf(fout, "\nIncluded encoders:\n\n");
 
   const int num_encoder = get_aom_encoder_count();
@@ -771,10 +804,11 @@ static void show_help(FILE *fout, int shorthelp) {
     const AvxInterface *const encoder = get_aom_encoder_by_index(i);
     const char *defstr = (i == (num_encoder - 1)) ? "(default)" : "";
     fprintf(fout, "    %-6s - %s %s\n", encoder->name,
-            aom_codec_iface_name(encoder->codec_interface()), defstr);
+        aom_codec_iface_name(encoder->codec_interface()), defstr);
   }
   fprintf(fout, "\n        ");
   fprintf(fout, "Use --codec to switch to a non-default encoder.\n\n");
+
 }
 
 void usage_exit(void) {
@@ -839,7 +873,7 @@ struct stream_state {
 };
 
 static void validate_positive_rational(const char *msg,
-                                       struct aom_rational *rat) {
+    struct aom_rational *rat) {
   if (rat->den < 0) {
     rat->num *= -1;
     rat->den *= -1;
@@ -854,7 +888,7 @@ static void validate_positive_rational(const char *msg,
  * argv is modified and overwrites all parsed arguments.
  */
 static void parse_global_config(struct AvxEncoderConfig *global, int argc,
-                                char ***argv) {
+    char ***argv) {
   char **argi, **argj;
   struct arg arg;
   const int num_encoder = get_aom_encoder_count();
@@ -959,7 +993,7 @@ static void parse_global_config(struct AvxEncoderConfig *global, int argc,
     /* DWIM: Assume the user meant passes=2 if pass=2 is specified */
     if (global->pass > global->passes) {
       warn("Assuming --pass=%d implies --passes=%d\n", global->pass,
-           global->pass);
+          global->pass);
       global->passes = global->pass;
     }
   }
@@ -976,11 +1010,62 @@ static void parse_global_config(struct AvxEncoderConfig *global, int argc,
   }
 }
 
+/* Parses sparse config arguments into the SparseConfig. Note that
+ * argv is modified and overwrites all parsed arguments.
+ */
+static void parse_sparse_config(struct SparseConfig *sparse, char ***argv, int h) {
+  char **argi, **argj;
+  struct arg arg;
+  char **argv_local = (char **)*argv;
+
+  /* Initialize default parameters */
+  memset(sparse, 0, sizeof(*sparse));
+  sparse->sparse_coding = 0;
+  sparse->train_dict = 32;
+  sparse->k_codewords = 512;
+  sparse->training = RANDOM;
+  sparse->iterations = 10;
+  sparse->sparse_depth = -1;
+
+  for (argi = argj = argv_local; (*argj = *argi); argi += arg.argv_step) {
+    arg.argv_step = 1;     arg.argv_step = 1;
+
+    if (arg_match(&arg, &sparse_coding, argi))
+      sparse->sparse_coding = 1;
+    else if (arg_match(&arg, &k_codewords, argi))
+      sparse->k_codewords = arg_parse_uint(&arg);
+    else if (arg_match(&arg, &train_dict, argi))
+      sparse->train_dict = arg_parse_uint(&arg);
+    else if (arg_match(&arg, &sparse_depth, argi))
+      sparse->sparse_depth = arg_parse_uint(&arg);
+    else if (arg_match(&arg, &iterations, argi))
+      sparse->iterations = arg_parse_uint(&arg);
+    else if (arg_match(&arg, &dict_alg, argi))
+      sparse->training = arg_parse_enum(&arg);
+    else
+      argj++;
+  }
+
+  if (sparse->sparse_depth == -1) {
+    if(h > 1080) {
+      sparse->sparse_depth = 3;
+    } else if(h < 460) {
+      sparse->sparse_depth = 1;
+    } else {
+      sparse->sparse_depth = 2;
+    }
+  }
+
+  if (sparse->sparse_depth > 3) {
+    sparse->sparse_depth = 3;
+  }
+}
+
 static void open_input_file(struct AvxInputContext *input,
-                            aom_chroma_sample_position_t csp) {
+    aom_chroma_sample_position_t csp) {
   /* Parse certain options from the input file, if possible */
   input->file = strcmp(input->filename, "-") ? fopen(input->filename, "rb")
-                                             : set_binary_mode(stdin);
+      : set_binary_mode(stdin);
 
   if (!input->file) fatal("Failed to open input file");
 
@@ -1004,7 +1089,7 @@ static void open_input_file(struct AvxInputContext *input,
 
   if (input->detect.buf_read == 4 && file_is_y4m(input->detect.buf)) {
     if (y4m_input_open(&input->y4m, input->file, input->detect.buf, 4, csp,
-                       input->only_i420) >= 0) {
+        input->only_i420) >= 0) {
       input->file_type = FILE_TYPE_Y4M;
       input->width = input->y4m.pic_w;
       input->height = input->y4m.pic_h;
@@ -1029,7 +1114,7 @@ static void close_input_file(struct AvxInputContext *input) {
 }
 
 static struct stream_state *new_stream(struct AvxEncoderConfig *global,
-                                       struct stream_state *prev) {
+    struct stream_state *prev) {
   struct stream_state *stream;
 
   stream = calloc(1, sizeof(*stream));
@@ -1046,7 +1131,7 @@ static struct stream_state *new_stream(struct AvxEncoderConfig *global,
 
     /* Populate encoder configuration */
     res = aom_codec_enc_config_default(global->codec->codec_interface(),
-                                       &stream->config.cfg, global->usage);
+        &stream->config.cfg, global->usage);
     if (res) fatal("Failed to get config: %s\n", aom_codec_err_to_string(res));
 
     /* Change the default timebase to a high enough value so that the
@@ -1083,7 +1168,7 @@ static struct stream_state *new_stream(struct AvxEncoderConfig *global,
 }
 
 static void set_config_arg_ctrls(struct stream_config *config, int key,
-                                 const struct arg *arg) {
+    const struct arg *arg) {
   int j;
   if (key == AV1E_SET_FILM_GRAIN_TABLE) {
     config->film_grain_filename = arg->val;
@@ -1109,7 +1194,7 @@ static void set_config_arg_ctrls(struct stream_config *config, int key,
 }
 
 static int parse_stream_params(struct AvxEncoderConfig *global,
-                               struct stream_state *stream, char **argv) {
+    struct stream_state *stream, char **argv) {
   char **argi, **argj;
   struct arg arg;
   static const arg_def_t **ctrl_args = no_args;
@@ -1152,7 +1237,7 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
           config->write_webm = 0;
           config->write_ivf = 1;
         } else if (out_fn_len >= 4 &&
-                   !strcmp(config->out_fn + out_fn_len - 4, ".obu")) {
+            !strcmp(config->out_fn + out_fn_len - 4, ".obu")) {
           config->write_webm = 0;
           config->write_ivf = 0;
         }
@@ -1306,11 +1391,11 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
 }
 
 #define FOREACH_STREAM(iterator, list)                 \
-  for (struct stream_state *iterator = list; iterator; \
-       iterator = iterator->next)
+    for (struct stream_state *iterator = list; iterator; \
+    iterator = iterator->next)
 
 static void validate_stream_config(const struct stream_state *stream,
-                                   const struct AvxEncoderConfig *global) {
+    const struct AvxEncoderConfig *global) {
   const struct stream_state *streami;
   (void)global;
 
@@ -1324,13 +1409,13 @@ static void validate_stream_config(const struct stream_state *stream,
    * it is upgraded to at least match the input bit depth.
    */
   assert(stream->config.cfg.g_input_bit_depth <=
-         (unsigned int)stream->config.cfg.g_bit_depth);
+      (unsigned int)stream->config.cfg.g_bit_depth);
 
   for (streami = stream; streami; streami = streami->next) {
     /* All streams require output files */
     if (!streami->config.out_fn)
       fatal("Stream %d: Output file is required (specify with -o)",
-            streami->index);
+          streami->index);
 
     /* Check for two streams outputting to the same file */
     if (streami != stream) {
@@ -1338,7 +1423,7 @@ static void validate_stream_config(const struct stream_state *stream,
       const char *b = streami->config.out_fn;
       if (!strcmp(a, b) && strcmp(a, "/dev/null") && strcmp(a, ":nul"))
         fatal("Stream %d: duplicate output file (from stream %d)",
-              streami->index, stream->index);
+            streami->index, stream->index);
     }
 
     /* Check for two streams sharing a stats file. */
@@ -1347,7 +1432,7 @@ static void validate_stream_config(const struct stream_state *stream,
       const char *b = streami->config.stats_fn;
       if (a && b && !strcmp(a, b))
         fatal("Stream %d: duplicate stats file (from stream %d)",
-              streami->index, stream->index);
+            streami->index, stream->index);
     }
 
 #if CONFIG_FP_MB_STATS
@@ -1357,14 +1442,14 @@ static void validate_stream_config(const struct stream_state *stream,
       const char *b = streami->config.fpmb_stats_fn;
       if (a && b && !strcmp(a, b))
         fatal("Stream %d: duplicate mb stats file (from stream %d)",
-              streami->index, stream->index);
+            streami->index, stream->index);
     }
 #endif
   }
 }
 
 static void set_stream_dimensions(struct stream_state *stream, unsigned int w,
-                                  unsigned int h) {
+    unsigned int h) {
   if (!stream->config.cfg.g_w) {
     if (!stream->config.cfg.g_h)
       stream->config.cfg.g_w = w;
@@ -1378,45 +1463,54 @@ static void set_stream_dimensions(struct stream_state *stream, unsigned int w,
 
 static const char *file_type_to_string(enum VideoFileType t) {
   switch (t) {
-    case FILE_TYPE_RAW: return "RAW";
-    case FILE_TYPE_Y4M: return "Y4M";
-    default: return "Other";
+  case FILE_TYPE_RAW: return "RAW";
+  case FILE_TYPE_Y4M: return "Y4M";
+  default: return "Other";
   }
 }
 
 static const char *image_format_to_string(aom_img_fmt_t f) {
   switch (f) {
-    case AOM_IMG_FMT_I420: return "I420";
-    case AOM_IMG_FMT_I422: return "I422";
-    case AOM_IMG_FMT_I444: return "I444";
-    case AOM_IMG_FMT_YV12: return "YV12";
-    case AOM_IMG_FMT_YV1216: return "YV1216";
-    case AOM_IMG_FMT_I42016: return "I42016";
-    case AOM_IMG_FMT_I42216: return "I42216";
-    case AOM_IMG_FMT_I44416: return "I44416";
-    default: return "Other";
+  case AOM_IMG_FMT_I420: return "I420";
+  case AOM_IMG_FMT_I422: return "I422";
+  case AOM_IMG_FMT_I444: return "I444";
+  case AOM_IMG_FMT_YV12: return "YV12";
+  case AOM_IMG_FMT_YV1216: return "YV1216";
+  case AOM_IMG_FMT_I42016: return "I42016";
+  case AOM_IMG_FMT_I42216: return "I42216";
+  case AOM_IMG_FMT_I44416: return "I44416";
+  default: return "Other";
   }
 }
 
 static void show_stream_config(struct stream_state *stream,
-                               struct AvxEncoderConfig *global,
-                               struct AvxInputContext *input) {
+    struct AvxEncoderConfig *global,
+    struct SparseConfig *sparse,
+    struct AvxInputContext *input) {
 #define SHOW(field) \
-  fprintf(stderr, "    %-28s = %d\n", #field, stream->config.cfg.field)
+    fprintf(stderr, "    %-28s = %d\n", #field, stream->config.cfg.field)
 
   if (stream->index == 0) {
     fprintf(stderr, "Codec: %s\n",
-            aom_codec_iface_name(global->codec->codec_interface()));
+        aom_codec_iface_name(global->codec->codec_interface()));
     fprintf(stderr, "Source file: %s File Type: %s Format: %s\n",
-            input->filename, file_type_to_string(input->file_type),
-            image_format_to_string(input->fmt));
+        input->filename, file_type_to_string(input->file_type),
+        image_format_to_string(input->fmt));
   }
   if (stream->next || stream->index)
     fprintf(stderr, "\nStream Index: %d\n", stream->index);
   fprintf(stderr, "Destination file: %s\n", stream->config.out_fn);
   fprintf(stderr, "Coding path: %s\n",
-          stream->config.use_16bit_internal ? "HBD" : "LBD");
+      stream->config.use_16bit_internal ? "HBD" : "LBD");
   fprintf(stderr, "Encoder parameters:\n");
+  fprintf(stderr, "    sparse_coding\t\t = %d\n", sparse->sparse_coding);
+  if(sparse->sparse_coding) {
+    fprintf(stderr, "    k-Codewords\t\t\t = %d\n", sparse->k_codewords);
+    fprintf(stderr, "    re-training\t\t\t = %d\n", sparse->train_dict);
+    fprintf(stderr, "    Dict Algorithm\t\t = %d\n", sparse->training);
+    fprintf(stderr, "    Sparse depth\t\t = %d\n", sparse->sparse_depth);
+    fprintf(stderr, "    Iterations\t\t\t = %d\n", sparse->iterations);
+  }
 
   SHOW(g_usage);
   SHOW(g_threads);
@@ -1459,8 +1553,8 @@ static void show_stream_config(struct stream_state *stream,
 }
 
 static void open_output_file(struct stream_state *stream,
-                             struct AvxEncoderConfig *global,
-                             const struct AvxRational *pixel_aspect_ratio) {
+    struct AvxEncoderConfig *global,
+    const struct AvxRational *pixel_aspect_ratio) {
   const char *fn = stream->config.out_fn;
   const struct aom_codec_enc_cfg *const cfg = &stream->config.cfg;
 
@@ -1477,8 +1571,8 @@ static void open_output_file(struct stream_state *stream,
   if (stream->config.write_webm) {
     stream->webm_ctx.stream = stream->file;
     if (write_webm_file_header(&stream->webm_ctx, &stream->encoder, cfg,
-                               stream->config.stereo_fmt, global->codec->fourcc,
-                               pixel_aspect_ratio) != 0) {
+        stream->config.stereo_fmt, global->codec->fourcc,
+        pixel_aspect_ratio) != 0) {
       fatal("WebM writer initialization failed.");
     }
   }
@@ -1492,7 +1586,7 @@ static void open_output_file(struct stream_state *stream,
 }
 
 static void close_output_file(struct stream_state *stream,
-                              unsigned int fourcc) {
+    unsigned int fourcc) {
   const struct aom_codec_enc_cfg *const cfg = &stream->config.cfg;
 
   if (cfg->g_pass == AOM_RC_FIRST_PASS) return;
@@ -1508,14 +1602,14 @@ static void close_output_file(struct stream_state *stream,
   if (!stream->config.write_webm && stream->config.write_ivf) {
     if (!fseek(stream->file, 0, SEEK_SET))
       ivf_write_file_header(stream->file, &stream->config.cfg, fourcc,
-                            stream->frames_out);
+          stream->frames_out);
   }
 
   fclose(stream->file);
 }
 
 static void setup_pass(struct stream_state *stream,
-                       struct AvxEncoderConfig *global, int pass) {
+    struct AvxEncoderConfig *global, int pass) {
   if (stream->config.stats_fn) {
     if (!stats_open_file(&stream->stats, stream->config.stats_fn, pass))
       fatal("Failed to open statistics store");
@@ -1527,7 +1621,7 @@ static void setup_pass(struct stream_state *stream,
 #if CONFIG_FP_MB_STATS
   if (stream->config.fpmb_stats_fn) {
     if (!stats_open_file(&stream->fpmb_stats, stream->config.fpmb_stats_fn,
-                         pass))
+        pass))
       fatal("Failed to open mb statistics store");
   } else {
     if (!stats_open_mem(&stream->fpmb_stats, pass))
@@ -1536,8 +1630,8 @@ static void setup_pass(struct stream_state *stream,
 #endif
 
   stream->config.cfg.g_pass = global->passes == 2
-                                  ? pass ? AOM_RC_LAST_PASS : AOM_RC_FIRST_PASS
-                                  : AOM_RC_ONE_PASS;
+      ? pass ? AOM_RC_LAST_PASS : AOM_RC_FIRST_PASS
+          : AOM_RC_ONE_PASS;
   if (pass) {
     stream->config.cfg.rc_twopass_stats_in = stats_get(&stream->stats);
 #if CONFIG_FP_MB_STATS
@@ -1552,7 +1646,7 @@ static void setup_pass(struct stream_state *stream,
 }
 
 static void initialize_encoder(struct stream_state *stream,
-                               struct AvxEncoderConfig *global) {
+    struct AvxEncoderConfig *global) {
   int i;
   int flags = 0;
 
@@ -1561,7 +1655,7 @@ static void initialize_encoder(struct stream_state *stream,
 
   /* Construct Encoder Context */
   aom_codec_enc_init(&stream->encoder, global->codec->codec_interface(),
-                     &stream->config.cfg, flags);
+      &stream->config.cfg, flags);
   ctx_exit_on_error(&stream->encoder, "Failed to initialize encoder");
 
   /* Note that we bypass the aom_codec_control wrapper macro because
@@ -1578,7 +1672,7 @@ static void initialize_encoder(struct stream_state *stream,
   }
   if (stream->config.film_grain_filename) {
     aom_codec_control_(&stream->encoder, AV1E_SET_FILM_GRAIN_TABLE,
-                       stream->config.film_grain_filename);
+        stream->config.film_grain_filename);
   }
 
 #if CONFIG_AV1_DECODER
@@ -1589,11 +1683,11 @@ static void initialize_encoder(struct stream_state *stream,
 
     if (strcmp(global->codec->name, "av1") == 0) {
       aom_codec_control(&stream->decoder, AV1_SET_TILE_MODE,
-                        stream->config.cfg.large_scale_tile);
+          stream->config.cfg.large_scale_tile);
       ctx_exit_on_error(&stream->decoder, "Failed to set decode_tile_mode");
 
       aom_codec_control(&stream->decoder, AV1D_SET_IS_ANNEXB,
-                        stream->config.cfg.save_as_annexb);
+          stream->config.cfg.save_as_annexb);
       ctx_exit_on_error(&stream->decoder, "Failed to set is_annexb");
 
       aom_codec_control(&stream->decoder, AV1_SET_DECODE_TILE_ROW, -1);
@@ -1607,8 +1701,8 @@ static void initialize_encoder(struct stream_state *stream,
 }
 
 static void encode_frame(struct stream_state *stream,
-                         struct AvxEncoderConfig *global, struct aom_image *img,
-                         unsigned int frames_in) {
+    struct AvxEncoderConfig *global, struct aom_image *img,
+    unsigned int frames_in) {
   aom_codec_pts_t frame_start, next_frame_start;
   struct aom_codec_enc_cfg *cfg = &stream->config.cfg;
   struct aom_usec_timer timer;
@@ -1648,12 +1742,12 @@ static void encode_frame(struct stream_state *stream,
 #else
       stream->encoder.err = 1;
       ctx_exit_on_error(&stream->encoder,
-                        "Stream %d: Failed to encode frame.\n"
-                        "libyuv is required for scaling but is currently "
-                        "disabled.\n"
-                        "Be sure to specify -DCONFIG_LIBYUV=1 when running "
-                        "cmake.\n",
-                        stream->index);
+          "Stream %d: Failed to encode frame.\n"
+          "libyuv is required for scaling but is currently "
+          "disabled.\n"
+          "Be sure to specify -DCONFIG_LIBYUV=1 when running "
+          "cmake.\n",
+          stream->index);
 #endif
     }
   }
@@ -1678,20 +1772,20 @@ static void encode_frame(struct stream_state *stream,
 #else
     stream->encoder.err = 1;
     ctx_exit_on_error(&stream->encoder,
-                      "Stream %d: Failed to encode frame.\n"
-                      "Scaling disabled in this configuration. \n"
-                      "To enable, configure with --enable-libyuv\n",
-                      stream->index);
+        "Stream %d: Failed to encode frame.\n"
+        "Scaling disabled in this configuration. \n"
+        "To enable, configure with --enable-libyuv\n",
+        stream->index);
 #endif
   }
 
   aom_usec_timer_start(&timer);
   aom_codec_encode(&stream->encoder, img, frame_start,
-                   (uint32_t)(next_frame_start - frame_start), 0);
+      (uint32_t)(next_frame_start - frame_start), 0);
   aom_usec_timer_mark(&timer);
   stream->cx_time += aom_usec_timer_elapsed(&timer);
   ctx_exit_on_error(&stream->encoder, "Stream %d: Failed to encode frame",
-                    stream->index);
+      stream->index);
 }
 
 static void update_quantizer_histogram(struct stream_state *stream) {
@@ -1705,7 +1799,7 @@ static void update_quantizer_histogram(struct stream_state *stream) {
 }
 
 static void get_cx_data(struct stream_state *stream,
-                        struct AvxEncoderConfig *global, int *got_data) {
+    struct AvxEncoderConfig *global, int *got_data) {
   const aom_codec_cx_pkt_t *pkt;
   const struct aom_codec_enc_cfg *cfg = &stream->config.cfg;
   aom_codec_iter_t iter = NULL;
@@ -1716,88 +1810,221 @@ static void get_cx_data(struct stream_state *stream,
     static FileOffset ivf_header_pos = 0;
 
     switch (pkt->kind) {
-      case AOM_CODEC_CX_FRAME_PKT:
-        ++stream->frames_out;
-        if (!global->quiet)
-          fprintf(stderr, " %6luF", (unsigned long)pkt->data.frame.sz);
+    case AOM_CODEC_CX_FRAME_PKT:
+      ++stream->frames_out;
+      if (!global->quiet)
+        fprintf(stderr, " %6luF", (unsigned long)pkt->data.frame.sz);
 
-        update_rate_histogram(stream->rate_hist, cfg, pkt);
+      update_rate_histogram(stream->rate_hist, cfg, pkt);
 #if CONFIG_WEBM_IO
-        if (stream->config.write_webm) {
-          if (write_webm_block(&stream->webm_ctx, cfg, pkt) != 0) {
-            fatal("WebM writer failed.");
-          }
+      if (stream->config.write_webm) {
+        if (write_webm_block(&stream->webm_ctx, cfg, pkt) != 0) {
+          fatal("WebM writer failed.");
         }
+      }
 #endif
-        if (!stream->config.write_webm) {
-          if (stream->config.write_ivf) {
-            if (pkt->data.frame.partition_id <= 0) {
-              ivf_header_pos = ftello(stream->file);
-              fsize = pkt->data.frame.sz;
+      if (!stream->config.write_webm) {
+        if (stream->config.write_ivf) {
+          if (pkt->data.frame.partition_id <= 0) {
+            ivf_header_pos = ftello(stream->file);
+            fsize = pkt->data.frame.sz;
 
-              ivf_write_frame_header(stream->file, pkt->data.frame.pts, fsize);
-            } else {
-              fsize += pkt->data.frame.sz;
+            ivf_write_frame_header(stream->file, pkt->data.frame.pts, fsize);
+          } else {
+            fsize += pkt->data.frame.sz;
 
-              const FileOffset currpos = ftello(stream->file);
-              fseeko(stream->file, ivf_header_pos, SEEK_SET);
-              ivf_write_frame_size(stream->file, fsize);
-              fseeko(stream->file, currpos, SEEK_SET);
-            }
+            const FileOffset currpos = ftello(stream->file);
+            fseeko(stream->file, ivf_header_pos, SEEK_SET);
+            ivf_write_frame_size(stream->file, fsize);
+            fseeko(stream->file, currpos, SEEK_SET);
           }
-
-          (void)fwrite(pkt->data.frame.buf, 1, pkt->data.frame.sz,
-                       stream->file);
         }
-        stream->nbytes += pkt->data.raw.sz;
 
-        *got_data = 1;
+        (void)fwrite(pkt->data.frame.buf, 1, pkt->data.frame.sz,
+            stream->file);
+      }
+      stream->nbytes += pkt->data.raw.sz;
+
+      *got_data = 1;
 #if CONFIG_AV1_DECODER
-        if (global->test_decode != TEST_DECODE_OFF && !stream->mismatch_seen) {
-          aom_codec_decode(&stream->decoder, pkt->data.frame.buf,
-                           pkt->data.frame.sz, NULL);
-          if (stream->decoder.err) {
-            warn_or_exit_on_error(&stream->decoder,
-                                  global->test_decode == TEST_DECODE_FATAL,
-                                  "Failed to decode frame %d in stream %d",
-                                  stream->frames_out + 1, stream->index);
-            stream->mismatch_seen = stream->frames_out + 1;
-          }
+      if (global->test_decode != TEST_DECODE_OFF && !stream->mismatch_seen) {
+        aom_codec_decode(&stream->decoder, pkt->data.frame.buf,
+            pkt->data.frame.sz, NULL);
+        if (stream->decoder.err) {
+          warn_or_exit_on_error(&stream->decoder,
+              global->test_decode == TEST_DECODE_FATAL,
+              "Failed to decode frame %d in stream %d",
+              stream->frames_out + 1, stream->index);
+          stream->mismatch_seen = stream->frames_out + 1;
         }
+      }
 #endif
-        break;
-      case AOM_CODEC_STATS_PKT:
-        stream->frames_out++;
-        stats_write(&stream->stats, pkt->data.twopass_stats.buf,
-                    pkt->data.twopass_stats.sz);
-        stream->nbytes += pkt->data.raw.sz;
-        break;
+      break;
+    case AOM_CODEC_STATS_PKT:
+      stream->frames_out++;
+      stats_write(&stream->stats, pkt->data.twopass_stats.buf,
+          pkt->data.twopass_stats.sz);
+      stream->nbytes += pkt->data.raw.sz;
+      break;
 #if CONFIG_FP_MB_STATS
-      case AOM_CODEC_FPMB_STATS_PKT:
-        stats_write(&stream->fpmb_stats, pkt->data.firstpass_mb_stats.buf,
-                    pkt->data.firstpass_mb_stats.sz);
-        stream->nbytes += pkt->data.raw.sz;
-        break;
+    case AOM_CODEC_FPMB_STATS_PKT:
+      stats_write(&stream->fpmb_stats, pkt->data.firstpass_mb_stats.buf,
+          pkt->data.firstpass_mb_stats.sz);
+      stream->nbytes += pkt->data.raw.sz;
+      break;
 #endif
-      case AOM_CODEC_PSNR_PKT:
+    case AOM_CODEC_PSNR_PKT:
 
-        if (global->show_psnr) {
-          int i;
+      if (global->show_psnr) {
+        int i;
 
-          stream->psnr_sse_total += pkt->data.psnr.sse[0];
-          stream->psnr_samples_total += pkt->data.psnr.samples[0];
-          for (i = 0; i < 4; i++) {
-            if (!global->quiet)
-              fprintf(stderr, "%.3f ", pkt->data.psnr.psnr[i]);
-            stream->psnr_totals[i] += pkt->data.psnr.psnr[i];
-          }
-          stream->psnr_count++;
+        stream->psnr_sse_total += pkt->data.psnr.sse[0];
+        stream->psnr_samples_total += pkt->data.psnr.samples[0];
+        for (i = 0; i < 4; i++) {
+          if (!global->quiet)
+            fprintf(stderr, "%.3f ", pkt->data.psnr.psnr[i]);
+          stream->psnr_totals[i] += pkt->data.psnr.psnr[i];
         }
+        stream->psnr_count++;
+      }
 
-        break;
-      default: break;
+      break;
+    default: break;
     }
   }
+}
+
+static float calculate_threshold(struct AvxInputContext *sparse_input_ctx, int limit_frame) {
+  aom_image_t raw_thres;
+  image_t image;
+  char filename[60] = "";
+
+  int frame_availaible = 1;
+  int frame_calculated = 0;
+  float difference = 0;
+
+  if (sparse_input_ctx->file_type == FILE_TYPE_Y4M){
+    memset(&raw_thres, 0, sizeof(raw_thres));
+  } else {
+    aom_img_alloc(&raw_thres, sparse_input_ctx->fmt, sparse_input_ctx->width, sparse_input_ctx->height, 32);
+  }
+  image_alloc(&image, raw_thres.w, raw_thres.h);
+
+  // read first frame
+  read_frame(sparse_input_ctx, &raw_thres);
+
+  int histogram_size = 1 << raw_thres.bit_depth;
+
+  float *histogram_raw = (float*)calloc(histogram_size, sizeof(float));
+  float *histogram_raw_previous = (float*)calloc(histogram_size, sizeof(float));
+  float *histogram_diff = (float*)calloc(histogram_size, sizeof(float));
+
+  // calculate histogram for first frame
+  calculate_histogram(raw_thres.planes[AOM_PLANE_Y], raw_thres.w, raw_thres.h, histogram_raw_previous);
+  frame_calculated++;
+
+  while (frame_availaible) {
+    if (!limit_frame|| frame_calculated < limit_frame) {
+      frame_availaible = read_frame(sparse_input_ctx, &raw_thres);
+      if (frame_availaible)
+        frame_calculated++;
+
+      calculate_histogram(raw_thres.planes[AOM_PLANE_Y], raw_thres.w, raw_thres.h, histogram_raw);
+      difference += normalized_histogram_difference(histogram_raw, histogram_raw_previous, histogram_diff, raw_thres.w * raw_thres.h, histogram_size);
+
+      memcpy(histogram_raw_previous, histogram_raw, histogram_size * sizeof(int));
+      memset(histogram_raw, 0, histogram_size * sizeof(float));
+
+      fprintf(stderr, "\rCalculate histogram difference to frame %d", frame_calculated);
+    } else {
+      frame_availaible = 0;
+    }
+
+  }
+
+  fprintf(stderr, "\ndifference: %f\n", difference/frame_calculated);
+
+  float total_values = 0;
+  for (int i = 0; i < histogram_size; i++) {
+    total_values += histogram_diff[i];
+  }
+
+  float mean = histogram_mean(histogram_diff, total_values, histogram_size);
+  float deviation = histogram_deviation(histogram_diff, mean, total_values, histogram_size);
+
+  free(histogram_raw);
+  free(histogram_raw_previous);
+  free(histogram_diff);
+  aom_img_free(&raw_thres);
+
+  return mean + ((float)ALPHA_THRES * deviation);
+}
+
+static bool sparse_analysis(struct AvxInputContext *sparse_input_ctx, int *frame_in_sparse, int frame_in, aom_image_t *raw,
+    aom_image_t *raw_to_analyze, int threshold_value) {
+
+  char filename[60] = "";
+  image_t image_local;
+
+
+  strcpy(filename, "/home/augusto/Downloads/images/image_analysis");
+  sprintf(filename + strlen(filename), "%d.jpg", *frame_in_sparse);
+  copy_image(raw->planes[AOM_PLANE_Y], raw->w, &image_local);
+  write_image(filename, &image_local);
+  /*
+  int histogram_size = 1 << raw->bit_depth;
+
+  //// Calculate difference threshold
+  //float difference_thres = 1000.0;
+
+  float *histogram_raw = (float*)calloc(histogram_size, sizeof(float));
+  float *histogram_raw_analyze = (float*)calloc(histogram_size, sizeof(float));
+  float *histogram_diff = (float*)calloc(histogram_size, sizeof(float));
+
+  image_alloc(&image_local, raw_to_analyze->w, raw_to_analyze->h);
+
+  read_frame(sparse_input_ctx, raw_to_analyze);
+
+
+  int changed_blocks = 0;
+  bool change_scene = false;
+
+
+  /*
+
+
+  if (changed_blocks > ((rows * columns) / 2) + 1) {
+    fprintf(stderr, "change scene in frame %d\n", *frame_in_sparse);
+    change_scene = true;
+  }
+
+  (*frame_in_sparse)++;
+
+  return change_scene;
+
+
+
+  /*
+  if( changed_blocks > ((rows * columns) / 2) + 1){
+    int i = 0;
+     bool end_read = false;
+
+     while(end_read) {
+   *frame_in_sparse += 5;
+
+       if(*frame_in_sparse <= frame_in) {
+         continue;
+       }
+
+       strcpy(filename, "/home/augusto/Downloads/images/image_analysis");
+       sprintf(filename + strlen(filename), "%d.jpg", *frame_in_sparse);
+       copy_image(raw_to_analyze->planes[AOM_PLANE_Y], raw_to_analyze->w, &image_local);
+       write_image(filename, &image_local);
+       /*
+     }
+  }*/
+
+  return 0;
 }
 
 static void show_psnr(struct stream_state *stream, double peak, int64_t bps) {
@@ -1808,7 +2035,7 @@ static void show_psnr(struct stream_state *stream, double peak, int64_t bps) {
 
   fprintf(stderr, "Stream %d PSNR (Overall/Avg/Y/U/V)", stream->index);
   ovpsnr = sse_to_psnr((double)stream->psnr_samples_total, peak,
-                       (double)stream->psnr_sse_total);
+      (double)stream->psnr_sse_total);
   fprintf(stderr, " %.3f", ovpsnr);
 
   for (i = 0; i < 4; i++) {
@@ -1826,7 +2053,7 @@ static float usec_to_fps(uint64_t usec, unsigned int frames) {
 }
 
 static void test_decode(struct stream_state *stream,
-                        enum TestDecodeFatality fatal) {
+    enum TestDecodeFatality fatal) {
   aom_image_t enc_img, dec_img;
 
   if (stream->mismatch_seen) return;
@@ -1840,14 +2067,14 @@ static void test_decode(struct stream_state *stream,
     if (enc_img.fmt & AOM_IMG_FMT_HIGHBITDEPTH) {
       aom_image_t enc_hbd_img;
       aom_img_alloc(&enc_hbd_img, enc_img.fmt - AOM_IMG_FMT_HIGHBITDEPTH,
-                    enc_img.d_w, enc_img.d_h, 16);
+          enc_img.d_w, enc_img.d_h, 16);
       aom_img_truncate_16_to_8(&enc_hbd_img, &enc_img);
       enc_img = enc_hbd_img;
     }
     if (dec_img.fmt & AOM_IMG_FMT_HIGHBITDEPTH) {
       aom_image_t dec_hbd_img;
       aom_img_alloc(&dec_hbd_img, dec_img.fmt - AOM_IMG_FMT_HIGHBITDEPTH,
-                    dec_img.d_w, dec_img.d_h, 16);
+          dec_img.d_w, dec_img.d_h, 16);
       aom_img_truncate_16_to_8(&dec_hbd_img, &dec_img);
       dec_img = dec_hbd_img;
     }
@@ -1865,12 +2092,12 @@ static void test_decode(struct stream_state *stream,
     }
     stream->decoder.err = 1;
     warn_or_exit_on_error(&stream->decoder, fatal == TEST_DECODE_FATAL,
-                          "Stream %d: Encode/decode mismatch on frame %d at"
-                          " Y[%d, %d] {%d/%d},"
-                          " U[%d, %d] {%d/%d},"
-                          " V[%d, %d] {%d/%d}",
-                          stream->index, stream->frames_out, y[0], y[1], y[2],
-                          y[3], u[0], u[1], u[2], u[3], v[0], v[1], v[2], v[3]);
+        "Stream %d: Encode/decode mismatch on frame %d at"
+        " Y[%d, %d] {%d/%d},"
+        " U[%d, %d] {%d/%d},"
+        " V[%d, %d] {%d/%d}",
+        stream->index, stream->frames_out, y[0], y[1], y[2],
+        y[3], u[0], u[1], u[2], u[3], v[0], v[1], v[2], v[3]);
     stream->mismatch_seen = stream->frames_out;
   }
 
@@ -1891,7 +2118,7 @@ static void print_time(const char *label, int64_t etl) {
     secs = etl;
 
     fprintf(stderr, "[%3s %2" PRId64 ":%02" PRId64 ":%02" PRId64 "] ", label,
-            hours, mins, secs);
+        hours, mins, secs);
   } else {
     fprintf(stderr, "[%3s  unknown] ", label);
   }
@@ -1901,13 +2128,20 @@ int main(int argc, const char **argv_) {
   int pass;
   aom_image_t raw;
   aom_image_t raw_shift;
+
+  // image for sparse coding
+  aom_image_t raw_sparse;
+  aom_image_t raw_to_analyze;
+
   int allocated_raw_shift = 0;
   int use_16bit_internal = 0;
   int input_shift = 0;
   int frame_avail, got_data;
 
   struct AvxInputContext input;
+  struct AvxInputContext sparse_input;
   struct AvxEncoderConfig global;
+  struct SparseConfig sparse;
   struct stream_state *streams = NULL;
   char **argv, **argi;
   uint64_t cx_time = 0;
@@ -1915,7 +2149,20 @@ int main(int argc, const char **argv_) {
   int res = 0;
   int profile_updated = 0;
 
+
+  // store sparse elements for 8x8, 16x16, 32x32, 64x64
+  int thres_calculated = 0;
+  float threshold;
+
+  image_t image;
+
+  image_t image_result[4];
+  dictionary_t dictionaries[4];
+  sample_t samples_dict[4];
+  sparse_coeff_t sparse_coeff[4];
+
   memset(&input, 0, sizeof(input));
+  memset(&sparse_input, 0, sizeof(sparse_input));
   exec_name = argv_[0];
 
   /* Setup default input stream settings */
@@ -1930,6 +2177,7 @@ int main(int argc, const char **argv_) {
    */
   argv = argv_dup(argc - 1, argv_ + 1);
   parse_global_config(&global, argc, &argv);
+  parse_sparse_config(&sparse, &argv, input.height);
 
 #if CONFIG_FILEOPTIONS
   if (argc < 2) usage_exit();
@@ -1938,10 +2186,10 @@ int main(int argc, const char **argv_) {
 #endif
 
   switch (global.color_type) {
-    case I420: input.fmt = AOM_IMG_FMT_I420; break;
-    case I422: input.fmt = AOM_IMG_FMT_I422; break;
-    case I444: input.fmt = AOM_IMG_FMT_I444; break;
-    case YV12: input.fmt = AOM_IMG_FMT_YV12; break;
+  case I420: input.fmt = AOM_IMG_FMT_I420; break;
+  case I422: input.fmt = AOM_IMG_FMT_I422; break;
+  case I444: input.fmt = AOM_IMG_FMT_I444; break;
+  case YV12: input.fmt = AOM_IMG_FMT_YV12; break;
   }
 
   {
@@ -1965,7 +2213,7 @@ int main(int argc, const char **argv_) {
 
   FOREACH_STREAM(stream, streams) {
     check_encoder_config(global.disable_warning_prompt, &global,
-                         &stream->config.cfg);
+        &stream->config.cfg);
   }
 
   /* Handle non-option arguments */
@@ -1980,7 +2228,7 @@ int main(int argc, const char **argv_) {
   if (global.codec->fourcc == AV1_FOURCC) input.only_i420 = 0;
 
   for (pass = global.pass ? global.pass - 1 : 0; pass < global.passes; pass++) {
-    int frames_in = 0, seen_frames = 0;
+    int frames_in = 0, seen_frames = 0, frames_in_sparse = 0;
     int64_t estimated_time_left = -1;
     int64_t average_rate = -1;
     int64_t lagged_count = 0;
@@ -2031,58 +2279,58 @@ int main(int argc, const char **argv_) {
         /* Automatically upgrade if input is non-4:2:0 but a 4:2:0 profile
            was selected. */
         switch (stream->config.cfg.g_profile) {
-          case 0:
-            if (input.bit_depth < 12 && (input.fmt == AOM_IMG_FMT_I444 ||
-                                         input.fmt == AOM_IMG_FMT_I44416)) {
-              if (!stream->config.cfg.monochrome) {
-                stream->config.cfg.g_profile = 1;
-                profile_updated = 1;
-              }
-            } else if (input.bit_depth == 12 || input.fmt == AOM_IMG_FMT_I422 ||
-                       input.fmt == AOM_IMG_FMT_I42216) {
-              stream->config.cfg.g_profile = 2;
-              profile_updated = 1;
-            }
-            break;
-          case 1:
-            if (input.bit_depth == 12 || input.fmt == AOM_IMG_FMT_I422 ||
-                input.fmt == AOM_IMG_FMT_I42216) {
-              stream->config.cfg.g_profile = 2;
-              profile_updated = 1;
-            } else if (input.bit_depth < 12 &&
-                       (input.fmt == AOM_IMG_FMT_I420 ||
-                        input.fmt == AOM_IMG_FMT_I42016)) {
-              stream->config.cfg.g_profile = 0;
-              profile_updated = 1;
-            }
-            break;
-          case 2:
-            if (input.bit_depth < 12 && (input.fmt == AOM_IMG_FMT_I444 ||
-                                         input.fmt == AOM_IMG_FMT_I44416)) {
+        case 0:
+          if (input.bit_depth < 12 && (input.fmt == AOM_IMG_FMT_I444 ||
+              input.fmt == AOM_IMG_FMT_I44416)) {
+            if (!stream->config.cfg.monochrome) {
               stream->config.cfg.g_profile = 1;
               profile_updated = 1;
-            } else if (input.bit_depth < 12 &&
-                       (input.fmt == AOM_IMG_FMT_I420 ||
-                        input.fmt == AOM_IMG_FMT_I42016)) {
-              stream->config.cfg.g_profile = 0;
-              profile_updated = 1;
-            } else if (input.bit_depth == 12 &&
-                       input.file_type == FILE_TYPE_Y4M) {
-              // Note that here the input file values for chroma subsampling
-              // are used instead of those from the command line.
-              aom_codec_control(&stream->encoder, AV1E_SET_CHROMA_SUBSAMPLING_X,
-                                input.y4m.dst_c_dec_h >> 1);
-              aom_codec_control(&stream->encoder, AV1E_SET_CHROMA_SUBSAMPLING_Y,
-                                input.y4m.dst_c_dec_v >> 1);
-            } else if (input.bit_depth == 12 &&
-                       input.file_type == FILE_TYPE_RAW) {
-              aom_codec_control(&stream->encoder, AV1E_SET_CHROMA_SUBSAMPLING_X,
-                                stream->chroma_subsampling_x);
-              aom_codec_control(&stream->encoder, AV1E_SET_CHROMA_SUBSAMPLING_Y,
-                                stream->chroma_subsampling_y);
             }
-            break;
-          default: break;
+          } else if (input.bit_depth == 12 || input.fmt == AOM_IMG_FMT_I422 ||
+              input.fmt == AOM_IMG_FMT_I42216) {
+            stream->config.cfg.g_profile = 2;
+            profile_updated = 1;
+          }
+          break;
+        case 1:
+          if (input.bit_depth == 12 || input.fmt == AOM_IMG_FMT_I422 ||
+              input.fmt == AOM_IMG_FMT_I42216) {
+            stream->config.cfg.g_profile = 2;
+            profile_updated = 1;
+          } else if (input.bit_depth < 12 &&
+              (input.fmt == AOM_IMG_FMT_I420 ||
+                  input.fmt == AOM_IMG_FMT_I42016)) {
+            stream->config.cfg.g_profile = 0;
+            profile_updated = 1;
+          }
+          break;
+        case 2:
+          if (input.bit_depth < 12 && (input.fmt == AOM_IMG_FMT_I444 ||
+              input.fmt == AOM_IMG_FMT_I44416)) {
+            stream->config.cfg.g_profile = 1;
+            profile_updated = 1;
+          } else if (input.bit_depth < 12 &&
+              (input.fmt == AOM_IMG_FMT_I420 ||
+                  input.fmt == AOM_IMG_FMT_I42016)) {
+            stream->config.cfg.g_profile = 0;
+            profile_updated = 1;
+          } else if (input.bit_depth == 12 &&
+              input.file_type == FILE_TYPE_Y4M) {
+            // Note that here the input file values for chroma subsampling
+            // are used instead of those from the command line.
+            aom_codec_control(&stream->encoder, AV1E_SET_CHROMA_SUBSAMPLING_X,
+                input.y4m.dst_c_dec_h >> 1);
+            aom_codec_control(&stream->encoder, AV1E_SET_CHROMA_SUBSAMPLING_Y,
+                input.y4m.dst_c_dec_v >> 1);
+          } else if (input.bit_depth == 12 &&
+              input.file_type == FILE_TYPE_RAW) {
+            aom_codec_control(&stream->encoder, AV1E_SET_CHROMA_SUBSAMPLING_X,
+                stream->chroma_subsampling_x);
+            aom_codec_control(&stream->encoder, AV1E_SET_CHROMA_SUBSAMPLING_Y,
+                stream->chroma_subsampling_y);
+          }
+          break;
+        default: break;
         }
       }
       /* Automatically set the codec bit depth to match the input bit depth.
@@ -2092,19 +2340,19 @@ int main(int argc, const char **argv_) {
         stream->config.cfg.g_bit_depth = stream->config.cfg.g_input_bit_depth;
         if (!global.quiet) {
           fprintf(stderr,
-                  "Warning: automatically updating bit depth to %d to "
-                  "match input format.\n",
-                  stream->config.cfg.g_input_bit_depth);
+              "Warning: automatically updating bit depth to %d to "
+              "match input format.\n",
+              stream->config.cfg.g_input_bit_depth);
         }
       }
       if (stream->config.cfg.g_bit_depth > 10) {
         switch (stream->config.cfg.g_profile) {
-          case 0:
-          case 1:
-            stream->config.cfg.g_profile = 2;
-            profile_updated = 1;
-            break;
-          default: break;
+        case 0:
+        case 1:
+          stream->config.cfg.g_profile = 2;
+          profile_updated = 1;
+          break;
+        default: break;
         }
       }
       if (stream->config.cfg.g_bit_depth > 8) {
@@ -2112,9 +2360,9 @@ int main(int argc, const char **argv_) {
       }
       if (profile_updated && !global.quiet) {
         fprintf(stderr,
-                "Warning: automatically updating to profile %d to "
-                "match input format.\n",
-                stream->config.cfg.g_profile);
+            "Warning: automatically updating to profile %d to "
+            "match input format.\n",
+            stream->config.cfg.g_profile);
       }
       /* Set limit */
       stream->config.cfg.g_limit = global.limit;
@@ -2161,18 +2409,27 @@ int main(int argc, const char **argv_) {
     /* Show configuration */
     if (global.verbose && pass == 0) {
       FOREACH_STREAM(stream, streams) {
-        show_stream_config(stream, &global, &input);
+        show_stream_config(stream, &global, &sparse, &input);
       }
     }
 
     if (pass == (global.pass ? global.pass - 1 : 0)) {
-      if (input.file_type == FILE_TYPE_Y4M)
+      if (input.file_type == FILE_TYPE_Y4M){
         /*The Y4M reader does its own allocation.
           Just initialize this here to avoid problems if we never read any
           frames.*/
         memset(&raw, 0, sizeof(raw));
-      else
+        if (sparse.sparse_coding) {
+          memset(&raw_sparse, 0, sizeof(raw_sparse));
+          memset(&raw_to_analyze, 0, sizeof(raw_to_analyze));
+        }
+      } else {
         aom_img_alloc(&raw, input.fmt, input.width, input.height, 32);
+        if (sparse.sparse_coding) {
+          aom_img_alloc(&raw_sparse, input.fmt, input.width, input.height, 32);
+          aom_img_alloc(&raw_to_analyze, input.fmt, input.width, input.height, 32);
+        }
+      }
 
       FOREACH_STREAM(stream, streams) {
         stream->rate_hist =
@@ -2196,12 +2453,47 @@ int main(int argc, const char **argv_) {
           use_16bit_internal = 1;
         }
         input_shift = (int)stream->config.cfg.g_bit_depth -
-                      stream->config.cfg.g_input_bit_depth;
+            stream->config.cfg.g_input_bit_depth;
       };
     }
 
     frame_avail = 1;
     got_data = 0;
+
+    char filename[60] = "";
+    char filename_sparse[60] = "";
+    char filename_recon[60] = "";
+
+    unsigned int block_size = 8;
+
+    // allocate image and allocate sample
+    if(sparse.sparse_coding) {
+
+      memcpy(&sparse_input, &input, sizeof(input));
+      open_input_file(&sparse_input, global.csp);
+
+      if (!thres_calculated) {
+        threshold = calculate_threshold(&sparse_input, global.limit);
+        fprintf(stderr, "Threshold: %f\n", threshold);
+        thres_calculated = 1;
+      }
+
+      int block_it = 0;
+      while(block_it <= sparse.sparse_depth) {
+        unsigned int sample_block = block_size  * block_size ;
+        unsigned int k = sample_block * 2;
+        int max_rand = (int)(raw.w / block_size) * (int)(raw.h / block_size);
+
+        dictionary_alloc(&dictionaries[block_it], sample_block, k);
+        samples_alloc(&samples_dict[block_it], sample_block, max_rand);
+        sparse_coeff_alloc(&sparse_coeff[block_it], k, max_rand);
+        image_alloc(&image_result[block_it], ((int)(raw.w / block_size)) * block_size, ((int)(raw.h / block_size ) * block_size));
+        block_it++;
+        block_size *= 2;
+      }
+    }
+
+    bool first_frame = true;
 
     while (frame_avail || got_data) {
       struct aom_usec_timer timer;
@@ -2219,14 +2511,14 @@ int main(int argc, const char **argv_) {
 
           if (stream_cnt == 1)
             fprintf(stderr, "frame %4d/%-4d %7" PRId64 "B ", frames_in,
-                    streams->frames_out, (int64_t)streams->nbytes);
+                streams->frames_out, (int64_t)streams->nbytes);
           else
             fprintf(stderr, "frame %4d ", frames_in);
 
           fprintf(stderr, "%7" PRId64 " %s %.2f %s ",
-                  cx_time > 9999999 ? cx_time / 1000 : cx_time,
+              cx_time > 9999999 ? cx_time / 1000 : cx_time,
                   cx_time > 9999999 ? "ms" : "us", fps >= 1.0 ? fps : fps * 60,
-                  fps >= 1.0 ? "fps" : "fpm");
+                      fps >= 1.0 ? "fps" : "fpm");
           print_time("ETA", estimated_time_left);
         }
 
@@ -2234,15 +2526,62 @@ int main(int argc, const char **argv_) {
         frame_avail = 0;
       }
 
+
       if (frames_in > global.skip_frames) {
+
         aom_image_t *frame_to_encode;
+
+        if(sparse.sparse_coding) {
+          int block_it = 0;
+
+          while(block_it <= sparse.sparse_depth) {
+            unsigned int block = (unsigned int)sqrt(samples_dict[block_it].sample_size);
+
+            // Generate filename for video frames
+            /* strcpy(filename_recon, "/home/augusto/Downloads/images/images-recon");
+            strcpy(filename_sparse, "/home/augusto/Downloads/images/sparse");
+            strcpy(filename, "/home/augusto/Downloads/images/image");
+            sprintf(filename + strlen(filename), "%dx%d - %d.jpg", block, block, frames_in);
+            sprintf(filename_recon + strlen(filename_recon), "%dx%d - %d.jpg", block, block, frames_in);
+            sprintf(filename_sparse + strlen(filename_sparse), "%dx%d - %d.csv", block, block, frames_in);*/
+            //write_image(filename, &images[block_it]);
+
+            if(first_frame)
+              memcpy(&raw_sparse, &raw, sizeof(raw));
+
+            bool change_scene = sparse_analysis(&sparse_input, &frames_in_sparse, frames_in, &raw_sparse, &raw_to_analyze, threshold);
+
+            if(change_scene) {
+              fprintf(stderr, "Change scene in %d\n", frames_in);
+              memcpy(&raw_sparse, &raw, sizeof(raw));
+            }
+            /*
+            clock_t start, end;
+            start = clock();
+            batch_OMP(sparse.iterations, &dictionaries[block_it], &samples_dict[block_it], samples_dict[block_it].number_blocks, dictionaries[block_it].sample_size, &sparse_coeff[block_it]);
+            mat_mat(1, dictionaries[block_it].data, sparse_coeff[block_it].data, image_recon, samples_dict[block_it].sample_size, dictionaries[block_it].k, samples_dict[block_it].number_blocks);
+            write_blocks(image_recon, samples_dict[block_it].sample_size, samples_dict[block_it].number_blocks, &image_result[block_it], false);
+            write_image(filename_recon, &image_result[block_it]);
+            print_sparse_csv(&sparse_coeff[block_it], filename_sparse);
+            end = clock();
+            fprintf(stderr, "Frame %d-%dx%d reconstructed -->[%lf ms]\n", frames_in, block, block, (double) (end-start) / CLOCKS_PER_SEC);
+
+            memset(sparse_coeff[block_it].data, 0, sparse_coeff[block_it].k * sparse_coeff[block_it].number_blocks * sizeof(double));
+
+            free(image_recon);*/
+            block_it++;
+          }
+        }
+
+        first_frame = false;
+
         if (input_shift || (use_16bit_internal && input.bit_depth == 8)) {
           assert(use_16bit_internal);
           // Input bit depth and stream bit depth do not match, so up
           // shift frame to stream bit depth
           if (!allocated_raw_shift) {
             aom_img_alloc(&raw_shift, raw.fmt | AOM_IMG_FMT_HIGHBITDEPTH,
-                          input.width, input.height, 32);
+                input.width, input.height, 32);
             allocated_raw_shift = 1;
           }
           aom_img_upshift(&raw_shift, &raw, input_shift);
@@ -2250,13 +2589,14 @@ int main(int argc, const char **argv_) {
         } else {
           frame_to_encode = &raw;
         }
+
         aom_usec_timer_start(&timer);
         if (use_16bit_internal) {
           assert(frame_to_encode->fmt & AOM_IMG_FMT_HIGHBITDEPTH);
           FOREACH_STREAM(stream, streams) {
             if (stream->config.use_16bit_internal)
               encode_frame(stream, &global,
-                           frame_avail ? frame_to_encode : NULL, frames_in);
+                  frame_avail ? frame_to_encode : NULL, frames_in);
             else
               assert(0);
           };
@@ -2264,7 +2604,7 @@ int main(int argc, const char **argv_) {
           assert((frame_to_encode->fmt & AOM_IMG_FMT_HIGHBITDEPTH) == 0);
           FOREACH_STREAM(stream, streams) {
             encode_frame(stream, &global, frame_avail ? frame_to_encode : NULL,
-                         frames_in);
+                frames_in);
           }
         }
         aom_usec_timer_mark(&timer);
@@ -2289,7 +2629,7 @@ int main(int argc, const char **argv_) {
 
             rate = cx_time ? frame_in_lagged * (int64_t)1000000 / cx_time : 0;
             remaining = 1000 * (global.limit - global.skip_frames -
-                                seen_frames + lagged_count);
+                seen_frames + lagged_count);
           } else {
             const int64_t input_pos = ftello(input.file);
             const int64_t input_pos_lagged = input_pos - lagged_count;
@@ -2323,16 +2663,16 @@ int main(int argc, const char **argv_) {
             seen_frames ? (int64_t)(stream->nbytes * 8 / seen_frames) : 0;
         const int64_t bps = bpf * global.framerate.num / global.framerate.den;
         fprintf(stderr,
-                "\rPass %d/%d frame %4d/%-4d %7" PRId64 "B %7" PRId64
-                "b/f %7" PRId64
-                "b/s"
-                " %7" PRId64 " %s (%.2f fps)\033[K\n",
-                pass + 1, global.passes, frames_in, stream->frames_out,
-                (int64_t)stream->nbytes, bpf, bps,
-                stream->cx_time > 9999999 ? stream->cx_time / 1000
-                                          : stream->cx_time,
-                stream->cx_time > 9999999 ? "ms" : "us",
-                usec_to_fps(stream->cx_time, seen_frames));
+            "\rPass %d/%d frame %4d/%-4d %7" PRId64 "B %7" PRId64
+            "b/f %7" PRId64
+            "b/s"
+            " %7" PRId64 " %s (%.2f fps)\033[K\n",
+            pass + 1, global.passes, frames_in, stream->frames_out,
+            (int64_t)stream->nbytes, bpf, bps,
+            stream->cx_time > 9999999 ? stream->cx_time / 1000
+                : stream->cx_time,
+                  stream->cx_time > 9999999 ? "ms" : "us",
+                      usec_to_fps(stream->cx_time, seen_frames));
       }
     }
 
@@ -2342,10 +2682,10 @@ int main(int argc, const char **argv_) {
           int64_t bps = 0;
           if (stream->psnr_count && seen_frames && global.framerate.den) {
             bps = (int64_t)stream->nbytes * 8 * (int64_t)global.framerate.num /
-                  global.framerate.den / seen_frames;
+                global.framerate.den / seen_frames;
           }
           show_psnr(stream, (1 << stream->config.cfg.g_input_bit_depth) - 1,
-                    bps);
+              bps);
         }
       } else {
         FOREACH_STREAM(stream, streams) { show_psnr(stream, 255.0, 0); }
@@ -2389,7 +2729,7 @@ int main(int argc, const char **argv_) {
   if (global.show_rate_hist_buckets) {
     FOREACH_STREAM(stream, streams) {
       show_rate_histogram(stream->rate_hist, &stream->config.cfg,
-                          global.show_rate_hist_buckets);
+          global.show_rate_hist_buckets);
     }
   }
   FOREACH_STREAM(stream, streams) { destroy_rate_histogram(stream->rate_hist); }
@@ -2403,7 +2743,7 @@ int main(int argc, const char **argv_) {
       FILE *f = fopen("opsnr.stt", "a");
       if (stream->mismatch_seen) {
         fprintf(f, "First mismatch occurred in frame %d\n",
-                stream->mismatch_seen);
+            stream->mismatch_seen);
       } else {
         fprintf(f, "No mismatch detected in recon buffers\n");
       }
